@@ -4,3 +4,4 @@ monassis_server_sync.egg-info/
 monassis/exceptions*.log
 monassis/events*.log
 monassis/tictoc*.log
+monassis/syncserver/hash_cache

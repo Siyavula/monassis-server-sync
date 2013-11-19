@@ -16,7 +16,7 @@ def main(global_config, **settings):
     logging.config.fileConfig(settings['logging_config'], defaults={'here': os.path.dirname(settings['logging_config']), 'logging_suffix': settings.get('logging_suffix', '')})
 
     # Entry points
-    config.add_route('entry_root', '/')
+    config.add_route('sync', '/sync')
 
     config.scan()
 
