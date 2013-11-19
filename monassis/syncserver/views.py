@@ -42,15 +42,16 @@ session: %s'''%(request.url, repr(userSession))
 
 def get_data(section, idents):
     import copy
-    columns = copy.copy(section['_hashColumns'])
+    hashColumns = copy.copy(section['_hashColumns'])
     if section.has_key('base64_encode'):
         sectionColumns = section['hash_columns']
         for column in section['base64_encode']:
             index = sectionColumns.index(column)
-            columns[index] = sqlalchemy.func.encode(columns[index], 'base64')
-    select = sqlalchemy.sql.select([section['_idColumn']] + columns, section['_idColumn'].in_(idents))
+            hashColumns[index] = sqlalchemy.func.encode(hashColumns[index], 'base64')
+    select = sqlalchemy.sql.select(section['_idColumns'] + hashColumns, sqlalchemy.tuple_(*(section['_idColumns'])).in_(idents))
     result = section['_database'].execute(select)
     return dict([(row[0], row[1:]) for row in result])
+
 
 def sync_master_slave(request, config, oldHashes, ourNewHashes, theirNewHashes):
     # As master, we never have to update anything
@@ -129,7 +130,7 @@ def sync_view(request):
         actions = syncRequest[entry]
         for sectionName, sectionData in actions.iteritems():
             for action in 'insert', 'update':
-                sectionData[action] = dict(sectionData[action])
+                sectionData[action] = dict([(tuple(key), value) for key, value in sectionData[action]])
 
     # Sanity check configurations
     for sectionName in syncRequest['config']['sync:main']['sections']:

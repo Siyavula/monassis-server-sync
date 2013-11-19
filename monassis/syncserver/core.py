@@ -57,8 +57,11 @@ def load_config_databases(config):
         section['_database'] = database
         table = eval('dbmodel.' + databaseConfig['tables'])[section['table']]
         section['_table'] = table
-        idColumn = table.c[section['id_column']]
-        section['_idColumn'] = idColumn
+        if ',' in section['id_column']:
+            idColumns = [table.c[_.strip()] for _ in section['id_column'].split(',')]
+        else:
+            idColumns = [table.c[section['id_column']]]
+        section['_idColumns'] = idColumns
         hashColumns = [table.c[columnName] for columnName in section['hash_columns']]
         section['_hashColumns'] = hashColumns
 
@@ -68,17 +71,17 @@ def compute_hashes_from_database(config):
     hashes = {}
     for sectionName in config['sync:main']['sections']:
         section = config['section:' + sectionName]
-        select = sqlalchemy.sql.select([
-            section['_idColumn'],
-            sqlalchemy.func.md5(
-                sqlalchemy.func.concat(*(
-                    [sqlalchemy.sql.cast(column, sqlalchemy.Text()) + "," for column in section['_hashColumns']])))])
+        select = sqlalchemy.sql.select(
+            section['_idColumns'] + [
+                sqlalchemy.func.md5(
+                    sqlalchemy.func.concat(*(
+                        [sqlalchemy.sql.cast(column, sqlalchemy.Text()) + "," for column in section['_hashColumns']])))])
         result = section['_database'].execute(select)
-        hashes[sectionName] = dict([(row[0], row[1]) for row in result])
+        hashes[sectionName] = dict([(tuple(row)[:-1], tuple(row)[-1]) for row in result])
         result.close()
     return hashes
 
 
 def hash_hash_structure(struct):
     import hashlib
-    return hashlib.md5(repr(sorted([((x.encode('utf-8') if isinstance(x, basestring) else x), sorted([((y.encode('utf-8') if isinstance(y, basestring) else y), (z.encode('utf-8') if isinstance(z, basestring) else z)) for y, z in subDict.items()])) for x, subDict in struct.items()]))).hexdigest()
+    return hashlib.md5(repr(sorted([((x.encode('utf-8') if isinstance(x, basestring) else x), sorted([(y.encode('utf-8') if isinstance(y, basestring) else tuple([entry.encode('utf-8') if isinstance(entry, basestring) else entry for entry in y]) if isinstance(y, tuple) else y, z.encode('utf-8') if isinstance(z, basestring) else z) for y, z in subDict.items()])) for x, subDict in struct.items()]))).hexdigest()

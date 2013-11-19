@@ -68,31 +68,34 @@ if __name__ == '__main__':
 
     dataActions = response['data-actions']
 
-    '''
     # Apply insert actions to our database
     for sectionName in config['sync:main']['sections']:
         section = config['section:' + sectionName]
         insertActions = dataActions[sectionName]['insert']
         for ident, values in insertActions:
-            insertValues = dict([(section['idColumn'], ident)] + [(section['hashColumns'][index], values[index]) for index in range(len(section['hashColumns']))])
-            section['_table'].insert().values(**insertValues).execute()
+            insertValues = dict([(section['_idColumns'][index].name, ident[index]) for index in range(len(section['idColumns']))] + [(section['hashColumns'][index], values[index]) for index in range(len(section['hashColumns']))])
+            section['_table'].insert().values(**insertValues)#.execute() # HACK
 
     # Apply update actions to our database
-    for sectionName in confi['sync:main']g['sections']:
+    for sectionName in config['sync:main']['sections']:
         section = config['section:' + sectionName]
         updateActions = dataActions[sectionName]['update']
         for ident, values in updateActions:
             updateValues = dict([(section['hashColumns'][index], values[index]) for index in range(len(section['hashColumns']))])
-            section['_table'].update().where(section['_idColumn'] == ident).values(**updateValues).execute()
+            whereClause = True
+            for index in range(len(section['_idColumns'])):
+                whereClause = whereClause & (section['_idColumns'][index] == ident[index])
+            section['_table'].update().where(whereClause).values(**updateValues)#.execute() # HACK
 
     # Apply delete actions to our database (reversed to avoid problems with foreign key constraints)
     for sectionName in reversed(config['sync:main']['sections']):
         section = config['section:' + sectionName]
         deleteActions = dataActions[sectionName]['delete']
         for ident in deleteActions:
-            section['_table'].delete().where(section['_idColumn'] == ident).execute()
-            pass
-    '''
+            whereClause = True
+            for index in range(len(section['_idColumns'])):
+                whereClause = whereClause & (section['_idColumns'][index] == ident[index])
+            section['_table'].delete().where(whereClause)#.execute() # HACK
 
     # Sanity check our updated hashes
     updatedHashes = core.compute_hashes_from_database(config)
