@@ -80,8 +80,8 @@ def sync_parent_child():
         newDict = ourNewHashes[sectionName]
         newKeys = set(newDict.keys())
         ourHashActions[sectionName] = {
-            'insert': get_data(config[sectionName], list(newKeys - oldKeys)),
-            'update': get_data(config[sectionName], [ident for ident in newKeys.intersection(oldKeys) if newDict[ident] != oldDict[ident]]),
+            'insert': get_data(config['section:' + sectionName], list(newKeys - oldKeys)),
+            'update': get_data(config['section:' + sectionName], [ident for ident in newKeys.intersection(oldKeys) if newDict[ident] != oldDict[ident]]),
             'delete': list(oldKeys - newKeys),
         }
     '''
@@ -120,7 +120,7 @@ def sync_view(request):
     config = core.load_config(
         os.path.join(
             request.registry.settings['config_path'],
-            syncRequest['config']['name'] + '.ini'))
+            syncRequest['config']['sync:main']['name'] + '.ini'))
 
     # Revert sync request actions to dict
     for entry in ['hash-actions', 'data-actions']:
@@ -132,8 +132,9 @@ def sync_view(request):
                 sectionData[action] = dict(sectionData[action])
 
     # Sanity check configurations
-    for sectionName in syncRequest['config']['sections']:
-        syncRequest['config'][sectionName]['merge'] = {'master': 'slave', 'slave': 'master', 'parent': 'child', 'child': 'parent', 'peer': 'peer'}[syncRequest['config'][sectionName]['merge']]
+    for sectionName in syncRequest['config']['sync:main']['sections']:
+        section = syncRequest['config']['section:' + sectionName]
+        section['merge'] = {'master': 'slave', 'slave': 'master', 'parent': 'child', 'child': 'parent', 'peer': 'peer'}[section['merge']]
     assert syncRequest['config'] == config # TODO: return error response
 
     # Load database models
@@ -141,10 +142,10 @@ def sync_view(request):
 
     # Read last set of hashes from cache
     cachePath = request.registry.settings['cache_path']
-    hashPath = os.path.join(cachePath, config['name'] + '.py')
+    hashPath = os.path.join(cachePath, config['sync:main']['name'] + '.py')
     oldHashes = core.get_hashes_from_cache(hashPath)
     # Delete any old sections, in case config has changed
-    for key in set(oldHashes.keys()) - set(config['sections']):
+    for key in set(oldHashes.keys()) - set(config['sync:main']['sections']):
         del oldHashes[key]
 
     # Apply their hash actions to old hashes to get their new hashes
@@ -160,25 +161,27 @@ def sync_view(request):
     # Determine what we have to do to update our and their data
     ourDataActions = {}
     theirDataActions = {}
-    for sectionName in config['sections']:
-        if config[sectionName]['merge'] == 'master':
-            ourDataActions[sectionName], theirDataActions[sectionName] = sync_master_slave(request, config[sectionName], oldHashes.get(sectionName, {}), ourNewHashes[sectionName], theirNewHashes.get(sectionName, {}))
+    for sectionName in config['sync:main']['sections']:
+        section = config['section:' + sectionName]
+        if section['merge'] == 'master':
+            ourDataActions[sectionName], theirDataActions[sectionName] = sync_master_slave(request, section, oldHashes.get(sectionName, {}), ourNewHashes[sectionName], theirNewHashes.get(sectionName, {}))
         else:
-            raise Exception, "Merge strategy %s in section %s not implemented"%(repr(config[sectionName]['merge']), repr(sectionName))
+            raise Exception, "Merge strategy %s in section %s not implemented"%(repr(section['merge']), repr(sectionName))
 
     '''
     # Apply our updates
-    for sectionName in config['sections']:
+    for sectionName in config['sync:main']['sections']:
         pass
     '''
 
     # Recompute hashes after updates
     finalHashes = {}
-    for sectionName in config['sections']:
-        if config[sectionName]['merge'] == 'master':
+    for sectionName in config['sync:main']['sections']:
+        section = config['section:' + sectionName]
+        if section['merge'] == 'master':
             finalHashes[sectionName] = ourNewHashes[sectionName]
         else:
-            raise Exception, "Hash update strategy %s in section %s not implemented"%(repr(config[sectionName]['merge']), repr(sectionName))
+            raise Exception, "Hash update strategy %s in section %s not implemented"%(repr(section['merge']), repr(sectionName))
     finalHashesHash = core.hash_hash_structure(finalHashes)
 
     # Store new hashes in cache

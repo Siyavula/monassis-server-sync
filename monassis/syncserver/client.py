@@ -13,8 +13,9 @@ if __name__ == '__main__':
 
     # Load config and adjust for client side
     config = core.load_config(os.path.join(here, 'config', configName + '.ini'))
-    for sectionName in config['sections']:
-        config[sectionName]['merge'] = {'master': 'slave', 'slave': 'master', 'parent': 'child', 'child': 'parent', 'peer': 'peer'}[config[sectionName]['merge']]
+    for sectionName in config['sync:main']['sections']:
+        section = config['section:' + sectionName]
+        section['merge'] = {'master': 'slave', 'slave': 'master', 'parent': 'child', 'child': 'parent', 'peer': 'peer'}[section['merge']]
     request = {'config': copy.deepcopy(config)}
 
     # Load database models
@@ -24,7 +25,7 @@ if __name__ == '__main__':
     hashPath = os.path.join(here, 'hash_cache', configName + '.py')
     oldHashes = core.get_hashes_from_cache(hashPath)
     # Delete any old sections, in case config has changed
-    for key in set(oldHashes.keys()) - set(config['sections']):
+    for key in set(oldHashes.keys()) - set(config['sync:main']['sections']):
         del oldHashes[key]
 
     # Compute our new hashes
@@ -33,8 +34,8 @@ if __name__ == '__main__':
     # Compute our hash actions to get from old to new hashes
     hashActions = {}
     dataActions = {}
-    for sectionName in config['sections']:
-        section = config[sectionName]
+    for sectionName in config['sync:main']['sections']:
+        section = config['section:' + sectionName]
         if section['merge'] == 'slave':
             oldDict = oldHashes.get(sectionName, {})
             oldKeys = set(oldDict.keys())
@@ -67,29 +68,31 @@ if __name__ == '__main__':
 
     dataActions = response['data-actions']
 
+    '''
     # Apply insert actions to our database
-    for sectionName in config['sections']:
-        section = config[sectionName]
+    for sectionName in config['sync:main']['sections']:
+        section = config['section:' + sectionName]
         insertActions = dataActions[sectionName]['insert']
         for ident, values in insertActions:
             insertValues = dict([(section['idColumn'], ident)] + [(section['hashColumns'][index], values[index]) for index in range(len(section['hashColumns']))])
             section['_table'].insert().values(**insertValues).execute()
 
     # Apply update actions to our database
-    for sectionName in config['sections']:
-        section = config[sectionName]
+    for sectionName in confi['sync:main']g['sections']:
+        section = config['section:' + sectionName]
         updateActions = dataActions[sectionName]['update']
         for ident, values in updateActions:
             updateValues = dict([(section['hashColumns'][index], values[index]) for index in range(len(section['hashColumns']))])
             section['_table'].update().where(section['_idColumn'] == ident).values(**updateValues).execute()
 
     # Apply delete actions to our database (reversed to avoid problems with foreign key constraints)
-    for sectionName in reversed(config['sections']):
-        section = config[sectionName]
+    for sectionName in reversed(config['sync:main']['sections']):
+        section = config['section:' + sectionName]
         deleteActions = dataActions[sectionName]['delete']
         for ident in deleteActions:
             section['_table'].delete().where(section['_idColumn'] == ident).execute()
             pass
+    '''
 
     # Sanity check our updated hashes
     updatedHashes = core.compute_hashes_from_database(config)

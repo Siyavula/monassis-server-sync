@@ -22,17 +22,14 @@ def load_config(filename):
     import ConfigParser
     configParser = ConfigParser.SafeConfigParser()
     configParser.read(filename)
-    config = {
-        'name': configParser.get('sync', 'name'),
-        'sections': [_.strip() for _ in configParser.get('sync', 'sections').split(',')], # Order matters because of foreign key constraints. Things get inserted in this order and then updated in this order and then deleted in the reverse order.
-    }
-    for section in configParser.sections():
-        if section == 'sync':
-            continue
-        config[section] = dict(configParser.items(section))
-        for key in 'hash_columns', 'base64_encode':
-            if config[section].has_key(key):
-                config[section][key] = [_.strip() for _ in config[section][key].split(',')]
+    config = dict([(section, dict(configParser.items(section))) for section in configParser.sections()])
+    make_list = lambda x: [_.strip() for _ in x.split(',')]
+    config['sync:main']['sections'] = make_list(config['sync:main']['sections'])
+    for key, value in config.iteritems():
+        if key[:8] == 'section:':
+            for key in ['hash_columns', 'base64_encode']:
+                if value.has_key(key):
+                    value[key] = make_list(value[key])
     return config
 
 
@@ -48,8 +45,8 @@ def get_hashes_from_cache(filename):
 
 
 def load_config_databases(config):
-    for sectionName in config['sections']:
-        section = config[sectionName]
+    for sectionName in config['sync:main']['sections']:
+        section = config['section:' + sectionName]
         databaseConfig = DATABASE_REGISTRY[section['database']]
         exec "import %s as dbmodel"%(databaseConfig['module'])
         version = eval('dbmodel.' + databaseConfig['version'])
@@ -69,8 +66,8 @@ def load_config_databases(config):
 def compute_hashes_from_database(config):
     import sqlalchemy
     hashes = {}
-    for sectionName in config['sections']:
-        section = config[sectionName]
+    for sectionName in config['sync:main']['sections']:
+        section = config['section:' + sectionName]
         select = sqlalchemy.sql.select([
             section['_idColumn'],
             sqlalchemy.func.md5(
