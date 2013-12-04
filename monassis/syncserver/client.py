@@ -7,6 +7,7 @@ if __name__ == '__main__':
     import sys, os, copy
     import requests, json
     import sqlalchemy
+    from base64 import b64decode
 
     here = os.path.dirname(os.path.realpath(__file__))
     configName = sys.argv[1]
@@ -49,53 +50,54 @@ if __name__ == '__main__':
         else:
             raise Exception, "Hash update strategy %s in section %s not implemented"%(repr(section['merge']), repr(sectionName))
 
-    for actions in [hashActions, dataActions]:
-        for sectionName, sectionData in actions.iteritems():
-            for action in 'insert', 'update':
-                sectionData[action] = sectionData[action].items()
-
     # Make sync request to server
     url = 'http://localhost:5391/sync'
     request.update({
-        'hash-actions': hashActions,
-        'data-actions': dataActions,
+        'hash-actions': core.actions_to_json(hashActions),
+        'data-actions': core.actions_to_json(dataActions),
         'hash-hash': core.hash_hash_structure(newHashes),
     })
-    print 'REQUEST:', request
     response = requests.post(url, data=json.dumps(request))
     response = json.loads(response.content)
-    print 'RESPONSE:', response
 
-    dataActions = response['data-actions']
+    dataActions = core.actions_from_json(response['data-actions'])
 
     # Apply insert actions to our database
     for sectionName in config['sync:main']['sections']:
         section = config['section:' + sectionName]
+        base64Columns = section.get('base64_encode', [])
         insertActions = dataActions[sectionName]['insert']
-        for ident, values in insertActions:
-            insertValues = dict([(section['_idColumns'][index].name, ident[index]) for index in range(len(section['idColumns']))] + [(section['hashColumns'][index], values[index]) for index in range(len(section['hashColumns']))])
-            section['_table'].insert().values(**insertValues)#.execute() # HACK
+        for ident, values in insertActions.iteritems():
+            insertValues = dict([(section['_idColumns'][index].name, ident[index]) for index in range(len(section['_idColumns']))])
+            for i in range(len(section['_hashColumns'])):
+                column = section['_hashColumns'][i]
+                key = column.name
+                value = b64decode(values[i]) if key in base64Columns else values[i]
+                insertValues[key] = value
+            section['_table'].insert().values(**insertValues).execute()
 
     # Apply update actions to our database
     for sectionName in config['sync:main']['sections']:
         section = config['section:' + sectionName]
+        base64Columns = section.get('base64_encode', [])
         updateActions = dataActions[sectionName]['update']
-        for ident, values in updateActions:
-            updateValues = dict([(section['hashColumns'][index], values[index]) for index in range(len(section['hashColumns']))])
-            whereClause = True
-            for index in range(len(section['_idColumns'])):
-                whereClause = whereClause & (section['_idColumns'][index] == ident[index])
-            section['_table'].update().where(whereClause).values(**updateValues)#.execute() # HACK
+        for ident, values in updateActions.iteritems():
+            updateValues = {}
+            for i in range(len(section['_hashColumns'])):
+                column = section['_hashColumns'][i]
+                key = column.name
+                value = b64decode(values[i]) if key in base64Columns else values[i]
+                updateValues[key] = value
+            whereClause = reduce(lambda x,y: x&y, [(section['_idColumns'][i] == ident[i]) for i in range(len(section['_idColumns']))])
+            section['_table'].update().where(whereClause).values(**updateValues).execute()
 
     # Apply delete actions to our database (reversed to avoid problems with foreign key constraints)
     for sectionName in reversed(config['sync:main']['sections']):
         section = config['section:' + sectionName]
         deleteActions = dataActions[sectionName]['delete']
         for ident in deleteActions:
-            whereClause = True
-            for index in range(len(section['_idColumns'])):
-                whereClause = whereClause & (section['_idColumns'][index] == ident[index])
-            section['_table'].delete().where(whereClause)#.execute() # HACK
+            whereClause = reduce(lambda x,y: x&y, [(section['_idColumns'][i] == ident[i]) for i in range(len(section['_idColumns']))])
+            section['_table'].delete().where(whereClause).execute()
 
     # Sanity check our updated hashes
     updatedHashes = core.compute_hashes_from_database(config)

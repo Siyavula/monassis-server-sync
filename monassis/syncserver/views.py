@@ -47,10 +47,11 @@ def get_data(section, idents):
         sectionColumns = section['hash_columns']
         for column in section['base64_encode']:
             index = sectionColumns.index(column)
-            hashColumns[index] = sqlalchemy.func.encode(hashColumns[index], 'base64')
+            hashColumns[index] = sqlalchemy.func.encode(hashColumns[index], 'base64').label('_' + column + '_base64_')
     select = sqlalchemy.sql.select(section['_idColumns'] + hashColumns, sqlalchemy.tuple_(*(section['_idColumns'])).in_(idents))
     result = section['_database'].execute(select)
-    return dict([(row[0], row[1:]) for row in result])
+    #return dict([(row[:len(section['_idColumns'])], row[len(section['_idColumns']):]) for row in result])
+    return dict([(tuple([row[column.name] for column in section['_idColumns']]), tuple([row[column.name] for column in hashColumns])) for row in result])
 
 
 def sync_master_slave(request, config, oldHashes, ourNewHashes, theirNewHashes):
@@ -127,10 +128,7 @@ def sync_view(request):
     for entry in ['hash-actions', 'data-actions']:
         if not syncRequest.has_key(entry):
             continue
-        actions = syncRequest[entry]
-        for sectionName, sectionData in actions.iteritems():
-            for action in 'insert', 'update':
-                sectionData[action] = dict([(tuple(key), value) for key, value in sectionData[action]])
+        core.actions_from_json(syncRequest[entry])
 
     # Sanity check configurations
     for sectionName in syncRequest['config']['sync:main']['sections']:
@@ -190,7 +188,7 @@ def sync_view(request):
         fp.write(repr(finalHashes))
 
     response = {
-        'data-actions': theirDataActions,
+        'data-actions': core.actions_to_json(theirDataActions),
         'hash-hash': finalHashesHash,
     }
 

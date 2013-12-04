@@ -85,3 +85,20 @@ def compute_hashes_from_database(config):
 def hash_hash_structure(struct):
     import hashlib
     return hashlib.md5(repr(sorted([((x.encode('utf-8') if isinstance(x, basestring) else x), sorted([(y.encode('utf-8') if isinstance(y, basestring) else tuple([entry.encode('utf-8') if isinstance(entry, basestring) else entry for entry in y]) if isinstance(y, tuple) else y, z.encode('utf-8') if isinstance(z, basestring) else z) for y, z in subDict.items()])) for x, subDict in struct.items()]))).hexdigest()
+
+
+def actions_to_json(actions):
+    # Modifies in place and returns the input list
+    for sectionName, sectionData in actions.iteritems():
+        for action in 'insert', 'update':
+            sectionData[action] = sectionData[action].items()
+    return actions
+
+
+def actions_from_json(actions):
+    # Modifies in place and returns the input list
+    for sectionName, sectionData in actions.iteritems():
+        for action in 'insert', 'update':
+            sectionData[action] = dict([(tuple(key), value) for key, value in sectionData[action]])
+        sectionData['delete'] = [tuple(key) for key in sectionData['delete']]
+    return actions
