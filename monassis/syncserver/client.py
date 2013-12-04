@@ -9,6 +9,8 @@ if __name__ == '__main__':
     import sqlalchemy
     from base64 import b64decode
 
+    log = []
+
     here = os.path.dirname(os.path.realpath(__file__))
     configName = sys.argv[1]
 
@@ -57,8 +59,10 @@ if __name__ == '__main__':
         'data-actions': core.actions_to_json(dataActions),
         'hash-hash': core.hash_hash_structure(newHashes),
     })
+    log.append('SYNC REQUEST to ' + url + ' <> ' + repr(request))
     response = requests.post(url, data=json.dumps(request))
     response = json.loads(response.content)
+    log.append('SYNC RESPONSE <> ' + repr(response))
 
     dataActions = core.actions_from_json(response['data-actions'])
 
@@ -68,6 +72,7 @@ if __name__ == '__main__':
         base64Columns = section.get('base64_encode', [])
         insertActions = dataActions[sectionName]['insert']
         for ident, values in insertActions.iteritems():
+            log.append('INSERT <> ' + repr({'table': section['_table'].name, 'id': ident}))
             insertValues = dict([(section['_idColumns'][index].name, ident[index]) for index in range(len(section['_idColumns']))])
             for i in range(len(section['_hashColumns'])):
                 column = section['_hashColumns'][i]
@@ -82,6 +87,7 @@ if __name__ == '__main__':
         base64Columns = section.get('base64_encode', [])
         updateActions = dataActions[sectionName]['update']
         for ident, values in updateActions.iteritems():
+            log.append('UPDATE <> ' + repr({'table': section['_table'].name, 'id': ident}))
             updateValues = {}
             for i in range(len(section['_hashColumns'])):
                 column = section['_hashColumns'][i]
@@ -96,6 +102,7 @@ if __name__ == '__main__':
         section = config['section:' + sectionName]
         deleteActions = dataActions[sectionName]['delete']
         for ident in deleteActions:
+            log.append('DELETE <> ' + repr({'table': section['_table'].name, 'id': ident}))
             whereClause = reduce(lambda x,y: x&y, [(section['_idColumns'][i] == ident[i]) for i in range(len(section['_idColumns']))])
             section['_table'].delete().where(whereClause).execute()
 
@@ -107,3 +114,6 @@ if __name__ == '__main__':
     # Cache our hashes
     with open(hashPath, 'wt') as fp:
         fp.write(repr(updatedHashes))
+
+    log.append('DONE')
+    print '\n'.join(log)
