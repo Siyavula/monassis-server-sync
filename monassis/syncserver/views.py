@@ -51,8 +51,8 @@ def get_data(section, idents):
     result = {}
     blockSize = 1000
     for index in range(0, len(idents), blockSize):
-        select = sqlalchemy.sql.select(section['_idColumns'] + hashColumns, sqlalchemy.tuple_(*(section['_idColumns'])).in_(idents[index:index
-        result.update(dict([(tuple([row[column.name] for column in section['_idColumns']]), tuple([row[column.name] for column in hashColumns]
+        select = sqlalchemy.sql.select(section['_idColumns'] + hashColumns, sqlalchemy.tuple_(*(section['_idColumns'])).in_(idents[index:index+blockSize]))
+        result.update(dict([(tuple([row[column.name] for column in section['_idColumns']]), tuple([row[column.name] for column in hashColumns]))]))
     return result
 
 
