@@ -53,7 +53,7 @@ if __name__ == '__main__':
             raise Exception, "Hash update strategy %s in section %s not implemented"%(repr(section['merge']), repr(sectionName))
 
     # Make sync request to server
-    url = 'http://localhost:5391/sync'
+    url = config['sync:main']['url']
     request.update({
         'hash-actions': core.actions_to_json(hashActions),
         'data-actions': core.actions_to_json(dataActions),
