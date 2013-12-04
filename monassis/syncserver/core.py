@@ -3,14 +3,26 @@ from __future__ import division
 
 
 DATABASE_REGISTRY = {
+    'monassis.books': {
+        'module': 'monassis.books.dbmodel',
+        'version': 'DB_VERSION',
+        'database': 'db',
+        'tables': 'tables',
+    },
+    'monassis.historyservice': {
+        'module': 'monassis.historyservice.dbmodel',
+        'version': 'DB_VERSION',
+        'database': 'db',
+        'tables': 'tables',
+    },
     'monassis.qnxmlservice': {
         'module': 'monassis.qnxmlservice.dbmodel',
         'version': 'DB_VERSION',
         'database': 'db',
         'tables': 'tables',
     },
-    'monassis.books': {
-        'module': 'monassis.books.dbmodel',
+    'monassis.usermanagement': {
+        'module': 'monassis.usermanagement.dbmodel',
         'version': 'DB_VERSION',
         'database': 'db',
         'tables': 'tables',
