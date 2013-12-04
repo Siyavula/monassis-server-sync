@@ -48,12 +48,14 @@ def get_data(section, idents):
         for column in section['base64_encode']:
             index = sectionColumns.index(column)
             hashColumns[index] = sqlalchemy.func.encode(hashColumns[index], 'base64').label('_' + column + '_base64_')
-    result = {}
+    allRows = {}
     blockSize = 1000
     for index in range(0, len(idents), blockSize):
         select = sqlalchemy.sql.select(section['_idColumns'] + hashColumns, sqlalchemy.tuple_(*(section['_idColumns'])).in_(idents[index:index+blockSize]))
-        result.update(dict([(tuple([row[column.name] for column in section['_idColumns']]), tuple([row[column.name] for column in hashColumns]))]))
-    return result
+        result = section['_database'].execute(select)
+        allRows.update(dict([(tuple([row[column.name] for column in section['_idColumns']]), tuple([row[column.name] for column in hashColumns])) for row in result]))
+        result.close()
+    return allRows
 
 
 def sync_master_slave(request, config, oldHashes, ourNewHashes, theirNewHashes):
