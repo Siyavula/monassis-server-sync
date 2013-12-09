@@ -24,22 +24,6 @@ def toc(startTime, extraInfo=None):
     log.info(message)
 
 
-@view_config(context=HTTPNotFound, renderer='templates/404.pt')
-def not_found(self, request):
-    try:
-        userId, userSession = get_user_info(request)
-        message = '''Got a 404 at URL %s
-session: %s'''%(request.url, repr(userSession))
-    except HTTPForbidden, e:
-        message = 'Got an anonymous 404 at URL %s'%(request.url)
-
-    log = logging.getLogger(__name__)
-    log.warning(message)
-
-    request.response.status_int = 404
-    return {}
-
-
 def get_data(section, idents):
     import copy
     hashColumns = copy.copy(section['_hashColumns'])
