@@ -1,5 +1,6 @@
 # encoding: utf-8
 from __future__ import division
+from uuid import UUID
 
 
 DATABASE_REGISTRY = {
@@ -103,7 +104,7 @@ def actions_to_json(actions):
     # Modifies in place and returns the input list
     for sectionName, sectionData in actions.iteritems():
         for action in 'insert', 'update':
-            sectionData[action] = sectionData[action].items()
+            sectionData[action] = [(key, repr(value) if isinstance(value, UUID) else value) for key, value in sectionData[action].iteritems()]
     return actions
 
 
@@ -111,6 +112,6 @@ def actions_from_json(actions):
     # Modifies in place and returns the input list
     for sectionName, sectionData in actions.iteritems():
         for action in 'insert', 'update':
-            sectionData[action] = dict([(tuple(key), value) for key, value in sectionData[action]])
+            sectionData[action] = dict([(tuple(key), eval(value) if value[:5] == 'UUID(' else value) for key, value in sectionData[action]])
         sectionData['delete'] = [tuple(key) for key in sectionData['delete']]
     return actions
