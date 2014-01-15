@@ -112,12 +112,12 @@ def struct_to_json(struct):
 
 
 def json_to_struct(json):
-    if isinstance(struct, list):
-        return [json_to_struct(x) for x in struct]
-    elif isinstance(struct, basestring) and (struct[:5] == 'UUID('):
-        return eval(struct)
+    if isinstance(json, list):
+        return [json_to_struct(x) for x in json]
+    elif isinstance(json, basestring) and (json[:5] == 'UUID('):
+        return eval(json)
     else:
-        return struct
+        return json
 
 
 def actions_to_json(actions):
