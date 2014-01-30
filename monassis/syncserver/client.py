@@ -34,7 +34,6 @@ if __name__ == '__main__':
 
     # Compute our hash actions to get from old to new hashes
     hashActions = {}
-    dataActions = {}
     for sectionName in config['sync:main']['sections']:
         section = config['section:' + sectionName]
         if section['merge'] == 'slave':
@@ -54,7 +53,7 @@ if __name__ == '__main__':
     url = config['sync:main']['url']
     request.update({
         'hash-actions': core.actions_to_json(hashActions),
-        'data-actions': core.actions_to_json(dataActions),
+        'data-actions': core.actions_to_json({}),
         'hash-hash': core.hash_hash_structure(newHashes),
     })
     print 'SYNC REQUEST to ' + url + ' <> ' + repr(request)

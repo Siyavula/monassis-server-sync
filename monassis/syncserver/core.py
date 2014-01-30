@@ -4,25 +4,25 @@ from uuid import UUID
 
 
 DATABASE_REGISTRY = {
-    'monassis.books': {
+    'bookdb': {
         'module': 'monassis.books.dbmodel',
         'version': 'DB_VERSION',
         'database': 'db',
         'tables': 'tables',
     },
-    'monassis.historyservice': {
+    'historydb': {
         'module': 'monassis.historyservice.dbmodel',
         'version': 'DB_VERSION',
         'database': 'db',
         'tables': 'tables',
     },
-    'monassis.qnxmlservice': {
+    'templatedb': {
         'module': 'monassis.qnxmlservice.dbmodel',
         'version': 'DB_VERSION',
         'database': 'db',
         'tables': 'tables',
     },
-    'monassis.usermanagement': {
+    'userdb': {
         'module': 'monassis.usermanagement.dbmodel',
         'version': 'DB_VERSION',
         'database': 'db',
