@@ -63,3 +63,21 @@ def compute_hash_actions(old_hash_hierarchy, new_hash_hierarchy):
             'update': dict([(ident, new_dict[ident]) for ident in new_keys.intersection(old_keys) if new_dict[ident] != old_dict[ident]]),
             'delete': list(old_keys - new_keys),
         }
+
+
+def apply_hash_actions(hashes, hash_actions):
+    import copy
+    new_hashes = copy.deepcopy(hashes)
+    for section_name, actions in hash_actions.iteritems():
+        d = new_hashes.setdefault(sectionName, {})
+        for action in ['insert', 'update']:
+            d.update(actions[action])
+    for section_name, actions in hash_actions.iteritems():
+        d = new_hashes[sectionName]
+        for ident in actions['delete']:
+            try:
+                del d[ident]
+            except KeyError:
+                raise KeyError, "Unknown identifier %s in delete action for section %s"%(repr(ident), repr(section))
+    return new_hashes
+

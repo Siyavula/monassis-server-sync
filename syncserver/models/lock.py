@@ -47,15 +47,22 @@ class Lock(Base):
 
     @classmethod
     def obtain_lock(cls, sync_name):
-        key = str(uuid4())
-        locked_at = last_accessed_at = now_utc()
+        from datetime import timedelta
+        now = now_utc()
 
+        # Clear timed out lock (if any)
+        DBSession.query(Lock).filter(Lock.last_accessed_at < now - timedelta(minutes=15)).delete()
+        transaction.commit()
+
+        # Set up new lock
+        key = str(uuid4())
         lock = Lock()
         lock.sync_name = sync_name
         lock.key = key
-        lock.locked_at = locked_at
-        lock.last_accessed_at = last_accessed_at
+        lock.locked_at = now
+        lock.last_accessed_at = now
 
+        # Try to create new lock
         try:
             DBSession.add(lock)
             transaction.commit()
