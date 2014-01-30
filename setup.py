@@ -1,46 +1,50 @@
-from setuptools import setup, find_packages
 import os
 
-version = '0.0.0'
-
-requires = [
-    'setuptools',
-    'requests',
-    'pyramid',
-    'Paste',
-    'WebError',
-    'repoze.tm2',
-    'pyramid_exclog',
-    'psycopg2',
-]
+from setuptools import setup, find_packages
 
 here = os.path.abspath(os.path.dirname(__file__))
 README = open(os.path.join(here, 'README.rst')).read()
-CHANGES = open(os.path.join(here, 'docs', 'HISTORY.txt')).read()
 
-setup(name='monassis-server-sync',
-      version=version,
-      description="The Monassis synchronisation server",
-      long_description=README + "\n\n" + CHANGES,
-      # Get more strings from
-      # http://pypi.python.org/pypi?:action=list_classifiers
+requires = [
+    'pyramid == 1.4',
+    'python-dateutil == 2.1',
+    'SQLAlchemy',
+    'transaction',
+    'pyramid_tm',
+    'pyramid_debugtoolbar',
+    'zope.sqlalchemy',
+    'waitress',
+    'newrelic',
+    'psycopg2',
+    'gunicorn',
+    'nose',
+    'webtest',
+    'requests',
+    ]
+
+setup(name='syncserver',
+      version='0.0',
+      description='Synchronisation service for the network of Monassis instances',
+      long_description=README,
       classifiers=[
         "Programming Language :: Python",
+        "Framework :: Pyramid",
+        "Topic :: Internet :: WWW/HTTP",
+        "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
         ],
-      keywords='',
       author='Carl Scheffler',
       author_email='carl@siyavula.com',
-      url='https://github.com/Siyavula/monassis-server-sync',
-      license='Copyright (C) Siyavula Education (Pty) Ltd',
-      packages=find_packages(exclude=['ez_setup']),
-      namespace_packages=['monassis'],
+      url='',
+      keywords='web wsgi bfg pylons pyramid',
+      packages=find_packages(),
       include_package_data=True,
       zip_safe=False,
+      test_suite='syncserver',
       install_requires=requires,
-      test_requires=requires,
-      entry_points = """\
+      entry_points="""\
       [paste.app_factory]
-      main = monassis.syncserver:main
+      main = syncserver:main
+      [console_scripts]
+      initialize_db = syncserver.scripts.initializedb:main
       """,
-      paster_plugins=['pyramid'],
       )
