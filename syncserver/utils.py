@@ -45,39 +45,44 @@ def force_utc(dt):
         return dt
 
 
-def compute_hash_actions(old_hash_hierarchy, new_hash_hierarchy):
-    '''
-    Compute the hash actions to be applied to get from old to new
-    hashes.
-    > {section: {'insert': {ident: hash}, 'update': {ident: hash}, 'delete': [ident]}}
-    '''
-    hash_actions = {}
-    sections = set(old_hash_hierarchy.keys() + new_hash_hierarchy.keys())
-    for section in sections:
-        old_dict = old_hash_hierarchy.get(section, {})
-        old_keys = set(old_dict.keys())
-        new_dict = new_hash_hierarchy.get(section, {})
-        new_keys = set(new_dict.keys())
-        hash_actions[section] = {
-            'insert': dict([(ident, new_dict[ident]) for ident in new_keys - old_keys]),
-            'update': dict([(ident, new_dict[ident]) for ident in new_keys.intersection(old_keys) if new_dict[ident] != old_dict[ident]]),
-            'delete': list(old_keys - new_keys),
-        }
+def __sync_master_slave_or_parent_child(master_hash_actions, slave_hash_actions, is_master_slave):
+    master_action_idents = set(master_hash_actions.keys())
+    slave_action_idents = set(slave_hash_actions.keys())
+    master_data_actions = {}
+    slave_data_actions = {}
+
+    for ident in master_action_idents - slave_action_idents:
+        slave_data_actions[ident] = master_hash_actions[ident][0]
+
+    # This is the only difference between master-slave and
+    # parent-child merges. A slave has to reverse its actions, while a
+    # child's actions get applied to the parent.
+    if is_master_slave:
+        for ident in slave_action_idents - master_action_idents:
+            slave_data_actions[ident] = {'insert': 'delete', 'update', 'update', 'delete': 'insert'}[slave_hash_actions[ident][0]]
+    else:
+        for ident in slave_action_idents - master_action_idents:
+            master_data_actions[ident] = slave_hash_actions[ident][0]
+
+    # When there are conflicting actions on the same ident, the
+    # master/parent always wins.
+    for ident in master_action_idents.intersection(slave_action_idents):
+        master_action = master_hash_actions[ident]
+        slave_action = slave_hash_actions[ident]
+        if master_action != slave_action:
+            slave_data_actions[ident] = {
+                'insert': {'insert': 'update'},
+                'update': {'update': 'update', 'delete': 'insert'},
+                'delete': {'update': 'delete'},
+            }[master_action[0]].get(slave_action[0])
+            assert slave_data_actions[ident] is not None, "Weird inconsistency between master and slave actions (ident: %s, master: %s, slave: %s)"%(repr(ident), repr(master_hash_actions[ident], slave_hash_actions[ident]))
+
+    return master_data_actions, slave_data_actions
 
 
-def apply_hash_actions(hashes, hash_actions):
-    import copy
-    new_hashes = copy.deepcopy(hashes)
-    for section_name, actions in hash_actions.iteritems():
-        d = new_hashes.setdefault(sectionName, {})
-        for action in ['insert', 'update']:
-            d.update(actions[action])
-    for section_name, actions in hash_actions.iteritems():
-        d = new_hashes[sectionName]
-        for ident in actions['delete']:
-            try:
-                del d[ident]
-            except KeyError:
-                raise KeyError, "Unknown identifier %s in delete action for section %s"%(repr(ident), repr(section))
-    return new_hashes
+def sync_master_slave(master_hash_actions, slave_hash_actions):
+    return __sync_master_slave_or_parent_child(master_hash_actions, slave_hash_actions, is_master_slave=True)
 
+
+def sync_parent_child(parent_hash_actions, child_hash_actions):
+    return __sync_master_slave_or_parent_child(parent_hash_actions, child_hash_actions, is_master_slave=False)

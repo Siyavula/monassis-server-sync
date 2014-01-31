@@ -55,8 +55,11 @@ class RecordHash(Base):
 
 
     @classmethod
-    def get_all_for(cls, sync_name):
-        return DBSession.query(RecordHash).filter(sync_name == sync_name)
+    def get_all_for(cls, sync_name, section=None):
+        where = (RecordHash.sync_name == sync_name)
+        if section is not None:
+            where = where & (RecordHash.section == section)
+        return DBSession.query(RecordHash).filter(where)
 
 
     @classmethod

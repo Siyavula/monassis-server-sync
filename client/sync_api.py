@@ -22,7 +22,9 @@ class SyncSession:
             'auth': auth,
             'verify': verify,
         }
+
         # Obtain lock
+        self.lock_key = None
         response = requests.put(
             urlparse.urljoin(self.host_uri, '/%s/lock'%(self.sync_name)),
             **self.request_params)
@@ -30,7 +32,6 @@ class SyncSession:
         if response.status_code == 200:
             self.lock_key = json.loads(response.content)['lock_key']
         else:
-            self.lock_key = None
             raise DatabaseLocked(423, json.loads(response.content)['error']['message'])
 
 

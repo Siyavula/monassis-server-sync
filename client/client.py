@@ -59,18 +59,28 @@ if __name__ == '__main__':
     session = sync_api.SyncSession(sync_name, config['sync:main']['url'])
     # TODO: Might raise sync_api.DatabaseLocked
 
-    # Get last hashes from server
-    old_hashes = session.get_hashes()
+    # TODO: Check database consistency using hash_hash
+
+    # Compute client hash actions to get from old to new hashes
+    client_hash_actions = record_database.get_hash_actions_for(config=config)
     # Find out how hashes have changed on the server
     server_hash_actions = session.get_hash_actions()
-    # Compute new hashes on server
-    server_new_hashes = utils.apply_hash_actions(old_hashes, server_hash_actions)
-    # Compute new hashes on client
-    client_new_hashes = record_database.get_all_hashes_for(config=config)
-    # Compute client hash actions to get from old to new hashes
-    client_hash_actions = utils.compute_hash_actions(old_hashes, client_new_hashes)
 
-    # TODO: Figure out how to sync
+    # Figure out how to sync
+    for section_name in config['sync:main']['sections']:
+        merge_strategy = config['section:' + section_name]['merge']
+        if merge_strategy == 'master':
+            client_data_actions, server_data_actions = utils.sync_master_slave(client_hash_actions, server_hash_actions)
+        elif merge_strategy == 'slave':
+            server_data_actions, client_data_actions = utils.sync_master_slave(server_hash_actions, client_hash_actions)
+        elif merge_strategy == 'parent':
+            client_data_actions, server_data_actions = utils.sync_parent_child(client_hash_actions, server_hash_actions)
+        elif merge_strategy == 'child':
+            server_data_actions, client_data_actions = utils.sync_parent_child(server_hash_actions, client_hash_actions)
+        else:
+            Exception, "Unknown merge strategy: %s"%(repr(merge_strategy))
+
+    # TODO: Send records to and receive records from server
     sys.exit()
 
     #import requests, json

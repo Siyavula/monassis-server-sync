@@ -9,21 +9,6 @@ import logging
 
 import core
 
-def tic():
-    import time
-    return time.time()
-
-def toc(startTime, extraInfo=None):
-    import time
-    stopTime = time.time()
-    import inspect
-    log = logging.getLogger('tictoc')
-    message = "%s took %.3es"%(inspect.stack()[1][3], stopTime-startTime)
-    if extraInfo is not None:
-        message += " [%s]"%extraInfo
-    log.info(message)
-
-
 def get_data(section, idents):
     import copy
     hashColumns = copy.copy(section['_hashColumns'])
@@ -42,62 +27,6 @@ def get_data(section, idents):
     return allRows
 
 
-def sync_master_slave(request, config, oldHashes, ourNewHashes, theirNewHashes):
-    # As master, we never have to update anything
-    ourDataActions = {}
-
-    # Compare hashes and determine merge actions
-    ourKeys = set(ourNewHashes.keys())
-    theirKeys = set(theirNewHashes.keys())
-    theirDataActions = {
-        'insert': get_data(config, list(ourKeys - theirKeys)),
-        'update': get_data(config, [ident for ident in ourKeys.intersection(theirKeys) if ourNewHashes[ident] != theirNewHashes[ident]]),
-        'delete': list(theirKeys - ourKeys),
-    }
-
-    return ourDataActions, theirDataActions
-
-def sync_slave_master():
-    pass
-
-def sync_parent_child():
-    '''
-    # Compute our hash actions
-    ourHashActions = {}
-    for sectionName in ourNewHashes:
-        oldDict = oldHashes.get(sectionName, {})
-        oldKeys = set(oldDict.keys())
-        newDict = ourNewHashes[sectionName]
-        newKeys = set(newDict.keys())
-        ourHashActions[sectionName] = {
-            'insert': get_data(config['section:' + sectionName], list(newKeys - oldKeys)),
-            'update': get_data(config['section:' + sectionName], [ident for ident in newKeys.intersection(oldKeys) if newDict[ident] != oldDict[ident]]),
-            'delete': list(oldKeys - newKeys),
-        }
-    '''
-
-def sync_child_parent():
-    pass
-
-def sync_peer_peer():
-    pass
-
-def update_hashes(hashes, hashActions):
-    import copy
-    newHashes = copy.deepcopy(hashes)
-    for sectionName, actions in hashActions.iteritems():
-        d = newHashes.setdefault(sectionName, {})
-        for action in ['insert', 'update']:
-            d.update(actions[action])
-    for sectionName, actions in hashActions.iteritems():
-        d = newHashes[sectionName]
-        for ident in actions['delete']:
-            if ident in d:
-                del d[ident]
-            else:
-                # TODO: return an error response here. should never exist a key in their hash table that was not in ours.
-                assert False
-    return newHashes
 
 @view_config(route_name='sync', renderer='json')
 def sync_view(request):
