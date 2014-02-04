@@ -54,6 +54,14 @@ class SyncSession:
             raise UnhandledResponse(response.status_code, message)
             
 
+    def get_hash_hash(self):
+        response = requests.get(
+            urlparse.urljoin(self.host_uri, '/%s/hash-hash'%(self.sync_name)),
+            **self.request_params)
+        self.__handle_unexpected_status_codes(response)
+        return json.loads(response.content)['hash-hash']
+
+        
     def get_hashes(self):
         response = requests.get(
             urlparse.urljoin(self.host_uri, '/%s/hashes'%(self.sync_name)),

@@ -4,7 +4,7 @@ from pyramid.paster import get_appsettings
 
 import syncserver.requests
 from syncserver.models.support import DBSession
-from syncserver.models import Base, RecordHash, Lock, LockError
+from syncserver.models import Base, Lock, LockError
 
 def init_testing_app():
     from syncserver import main

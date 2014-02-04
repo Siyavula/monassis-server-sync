@@ -49,24 +49,46 @@ if __name__ == '__main__':
 
     # Load config and adjust for client side
     configPath = sys.argv[1]
-    config = record_database.load_config(configPath)
-    for sectionName in config['sync:main']['sections']:
-        section = config['section:' + sectionName]
-        section['merge'] = {'master': 'slave', 'slave': 'master', 'parent': 'child', 'child': 'parent', 'peer': 'peer'}[section['merge']]
+    config = record_database.load_config_from_file(configPath, 'client')
     sync_name = config['sync:main']['name']
 
     # Connect to sync server
-    session = sync_api.SyncSession(sync_name, config['sync:main']['url'])
-    # TODO: Might raise sync_api.DatabaseLocked
+    connected = False
+    attempts = 0
+    while not connected and (attempts < 5):
+        try:
+            sync_session = sync_api.SyncSession(sync_name, config['sync:main']['url'])
+            connected = True
+        except sync_api.DatabaseLocked:
+            import time
+            minutes = 2**attempts # Exponential back-off waiting time
+            print 'Database locked, waiting %i minutes...'%(minutes)
+            time.sleep(60 * minutes)
+            attempts += 1
+    if not connected:
+        print 'Could not obtain database lock after max (%i) attempts'%(attempts)
+        sys.exit(-1)
 
-    # TODO: Check database consistency using hash_hash
+    # Check database consistency using hash_hash
+    client_hash_hash = record_database.get_hash_hash(config=config)
+    server_hash_hash = sync_session.get_hash_hash()
+    if client_hash_hash != server_hash_hash:
+        print 'Hash hash is inconsistent between client and server. Refusing to synchronise.'
+        sys.exit(-1)
+
+    import pdb
+    pdb.set_trace()
 
     # Compute client hash actions to get from old to new hashes
-    client_hash_actions = record_database.get_hash_actions_for(config=config)
+    client_hash_actions = record_database.get_hash_actions(config=config)
     # Find out how hashes have changed on the server
-    server_hash_actions = session.get_hash_actions()
+    server_hash_actions = sync_session.get_hash_actions()
+
+    sys.exit()
 
     # Figure out how to sync
+    client_actions = {}
+    server_actions = {}
     for section_name in config['sync:main']['sections']:
         merge_strategy = config['section:' + section_name]['merge']
         if merge_strategy == 'master':
@@ -80,7 +102,34 @@ if __name__ == '__main__':
         else:
             Exception, "Unknown merge strategy: %s"%(repr(merge_strategy))
 
-    # TODO: Send records to and receive records from server
+        # Aggregate actions by type
+        for actions, data_actions in [(client_actions, client_data_actions), (server_actions, server_data_actions)]:
+            actions[section_name] = {'insert': [], 'update': [], 'delete': []}
+            for ident, action in data_actions.iteritems():
+                actions[section_name][action].append(ident)
+
+    # Apply inserts locally
+    for section_name in config['sync:main']['sections']:
+        for record_id in client_actions[section_name]['insert']:
+            record = sync_session.get_record(section_name, record_id)
+            # TODO: insert into table
+            # TODO: insert into record_hash
+        
+    # Apply updates locally
+    for section_name in config['sync:main']['sections']:
+        for record_id in client_actions[section_name]['update']:
+            record = sync_session.get_record(section_name, record_id)
+            # TODO: update record in table
+            # TODO: update record_hash
+        
+    # Apply deletes locally
+    for section_name in config['sync:main']['sections']:
+        for record_id in client_actions[section_name]['delete']:
+            pass
+            # TODO: delete record from table
+            # TODO: delete record_hash
+        
+    # TODO: Send records to server
     sys.exit()
 
     #import requests, json

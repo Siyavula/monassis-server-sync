@@ -59,7 +59,7 @@ def __sync_master_slave_or_parent_child(master_hash_actions, slave_hash_actions,
     # child's actions get applied to the parent.
     if is_master_slave:
         for ident in slave_action_idents - master_action_idents:
-            slave_data_actions[ident] = {'insert': 'delete', 'update', 'update', 'delete': 'insert'}[slave_hash_actions[ident][0]]
+            slave_data_actions[ident] = {'insert': 'delete', 'update': 'update', 'delete': 'insert'}[slave_hash_actions[ident][0]]
     else:
         for ident in slave_action_idents - master_action_idents:
             master_data_actions[ident] = slave_hash_actions[ident][0]

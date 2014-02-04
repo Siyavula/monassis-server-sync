@@ -11,7 +11,6 @@ log = logging.getLogger(__name__)
 
 from .models import (
     DBSession,
-    RecordHash,
     Lock,
     LockError,
 )
@@ -54,6 +53,18 @@ def unlock_view(request):
     return {}
 
 
+@view_config(route_name='get_hash_hash', renderer='json')
+def get_hash_hash_view(request):
+    '''
+    GET /{name}/hash-hash
+        < {}
+        > {'hash-hash': hash}
+    '''
+    sync_name = request.matchdict['name']
+    config = record_database.load_config_from_name(sync_name, 'server')
+    return {'hash-hash': record_database.get_hash_hash(config)}
+
+
 def __get_all_hashes_for(sync_name, section=None):
     hash_hierarchy = {}
     for h in RecordHash.get_all_for(sync_name):
@@ -87,7 +98,8 @@ def get_hash_actions_view(request):
     if not Lock.test_lock(sync_name, key):
         raise DatabaseLocked("You do not own the lock on the database, or have the wrong key")
 
-    hash_actions = record_database.get_hash_actions_for(sync_name=sync_name)
+    config = record_database.load_config_from_name(sync_name, 'server')
+    hash_actions = record_database.get_hash_actions(config)
     return {'hash_actions': hash_actions}
 
 
@@ -118,7 +130,8 @@ def get_hash_actions_for_section_view(request):
         raise DatabaseLocked("You do not own the lock on the database, or have the wrong key")
 
     section = request.matchdict['section']
-    hash_actions = record_database.get_hash_actions_for(sync_name=sync_name, section=section)
+    config = record_database.load_config_from_name(sync_name, 'server')
+    hash_actions = record_database.get_hash_actions(config, section=section)
     return {'hash_actions': hash_actions}
 
 
@@ -133,7 +146,8 @@ def get_record_view(request):
     sync_name = request.matchdict['name']
     section = request.matchdict['key']
     record_id = request.matchdict['id']
-    record = record_database.get_record(sync_name, section, record_id)
+    config = record_database.load_config_from_name(sync_name, 'server')
+    record = record_database.get_record(config, section, record_id)
     if record is None:
         raise NotFound
     return {'record': record}

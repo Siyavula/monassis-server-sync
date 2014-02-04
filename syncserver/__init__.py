@@ -26,6 +26,7 @@ def main(global_config, **settings):
 def setup_routes(config):
     config.add_route('lock', '/{name}/lock', request_method='PUT')
     config.add_route('unlock', '/{name}/unlock', request_method='PUT')
+    config.add_route('get_hash_hash', '/{name}/hash-hash', request_method='GET')
     config.add_route('get_hashes', '/{name}/hashes', request_method='GET')
     config.add_route('get_hash_actions', '/{name}/hash-actions', request_method='GET')
     config.add_route('get_hashes_for_section', '/{name}/hashes/{section}', request_method='GET')
