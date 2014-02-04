@@ -30,7 +30,60 @@ DATABASE_REGISTRY = {
 }
 
 
-def load_config_from_file(filename, role):
+def __setup_local_variables(config):
+    from uuid import UUID
+    import datetime
+    return {
+        'UUID': UUID,
+        'datetime': datetime,
+        'SYNC_TIME': config['sync:main']['sync_time'],
+    }
+
+
+def __eval_python_command(name, command, config):
+    sql_results = []
+    local_variables = config['_setup']
+    local_variables['__sql_results'] = sql_results
+    while True:
+        start = command.find('`')
+        if start == -1:
+            break
+        stop = command.find('`', start+1)
+        if stop == -1:
+            raise ValueError, "Unclosed back tick found in command %s"%(repr(command))
+        sql = command[start+1:stop]
+        sql_results.append(__eval_sql_command(name, sql, local_variables, config))
+        command = command[:start] + '__sql_results[%i]'%(len(sql_results)-1) + command[stop+1:]
+    local_variables[name] = eval(command, local_variables)
+
+
+def __eval_sql_command(variable_name, sql, local_variables, config):
+    sql = sql.strip()
+    if sql[0] != '{':
+        raise ValueError, "No database specified for SQL command %s"%(repr(sql))
+    stop = sql.find('}')
+    if stop == -1:
+        raise ValueError, "Unclosed brace in SQL command %s"%(repr(sql))
+    database = sql[1:stop]
+    sql = sql[stop+1:]
+    if '.' in database:
+        # client-only or server-only
+        role, database = database.split('.')
+        if role not in ['client', 'server']:
+            raise ValueError, "Unknown role %s"%(repr(role))
+        if role != config['sync:main']['role']:
+            return []
+        else:
+            config['_' + role + '_vars'].append(variable_name)
+    exec "import " + DATABASE_REGISTRY[database]['module'] + " as dbmodel"
+    database = eval("dbmodel." + DATABASE_REGISTRY[database]['database'])
+    connection = database.connect()
+    from sqlalchemy.sql import text
+    result = connection.execute(text(sql), local_variables)
+    return result
+    
+
+def load_config_from_file(filename, role, run_setup=False, sync_time=None, client_vars={}):
     '''
     role: 'client' or 'server'
     '''
@@ -52,6 +105,7 @@ def load_config_from_file(filename, role):
             for key in ['hash_columns', 'base64_encode']:
                 if value.has_key(key):
                     value[key] = make_list(value[key])
+    config['sync:main']['sync_time'] = sync_time
 
     # Load database objects and embed in config object
     for section_name in config['sync:main']['sections']:
@@ -82,15 +136,34 @@ def load_config_from_file(filename, role):
             section = config['section:' + sectionName]
             section['merge'] = {'master': 'slave', 'slave': 'master', 'parent': 'child', 'child': 'parent', 'peer': 'peer'}[section['merge']]
 
+    # Run setup
+    if run_setup:
+        commands = config.get('sync:setup')
+        config['_setup'] = __setup_local_variables(config)
+        if role == 'client':
+            config['_client_vars'] = []
+        else:
+            config['_server_vars'] = []
+        if commands is not None:
+            for variable, command in commands:
+                if (role == 'server') and (variable in client_vars.keys()):
+                    config['_setup'][variable] = client_vars[variable]
+                else:
+                    __eval_python_command(variable, command, config)
+        if role == 'client':
+            config['_client_vars'] = list(set(config['_client_vars']))
+        else:
+            config['_server_vars'] = list(set(config['_server_vars']))
+
     return config
 
 
-def load_config_from_name(sync_name, role):
+def load_config_from_name(sync_name, role, run_setup=False, sync_time=None, client_vars={}):
     '''
     role: 'client' or 'server'
     '''
     import os
-    return load_config_from_file(os.path.join('config', sync_name + '.ini'))
+    return load_config_from_file(os.path.join('config', sync_name + '.ini'), role, run_setup=run_setup, sync_time=sync_time, client_vars=client_vars)
 
 
 """ # This might be handy for populating record_hashes table initially
@@ -118,12 +191,13 @@ def get_all_hashes_for(sync_name=None, config=None, section=None):
 
 
 def pack_record_id(columns):
-    # TODO
-    return packed_string
+    return ','.join([str(c) for c in columns]) + ','
 
 
-def unpack_record_id(packed_string):
+def unpack_record_id(packed_string, id_columns):
     # TODO
+    import pdb
+    pdb.set_trace()
     return columns
 
 
@@ -145,54 +219,6 @@ def get_hash_hash(config):
     return hash_hash.hexdigest()
 
 
-def __setup_local_variables():
-    from uuid import UUID
-    import datetime
-    return {
-        'UUID': UUID,
-        'datetime': datetime,
-    }
-
-def __eval_python_command(name, command, local_variables, config):
-    sql_results = []
-    local_variables['__sql_results'] = sql_results
-    while True:
-        start = command.find('`')
-        if start == -1:
-            break
-        stop = command.find('`', start+1)
-        if stop == -1:
-            raise ValueError, "Unclosed back tick found in command %s"%(repr(command))
-        sql = command[start+1:stop]
-        sql_results.append(__eval_sql_command(sql, local_variables, config))
-        command = command[:start] + '__sql_results[%i]'%(len(sql_results)-1) + command[stop+1:]
-    local_variables[name] = eval(command, local_variables)
-
-
-def __eval_sql_command(sql, local_variables, config):
-    sql = sql.strip()
-    if sql[0] != '{':
-        raise ValueError, "No database specified for SQL command %s"%(repr(sql))
-    stop = sql.find('}')
-    if stop == -1:
-        raise ValueError, "Unclosed brace in SQL command %s"%(repr(sql))
-    database = sql[1:stop]
-    sql = sql[stop+1:]
-    if '.' in database:
-        # client-only or server-only
-        role, database = database.split('.')
-        if role not in ['client', 'server']:
-            raise ValueError, "Unknown role %s"%(repr(role))
-        if role != config['sync:main']['role']:
-            return []
-    exec "import " + DATABASE_REGISTRY[database]['module'] + " as dbmodel"
-    database = eval("dbmodel." + DATABASE_REGISTRY[database]['database'])
-    connection = database.connect()
-    from sqlalchemy.sql import text
-    result = connection.execute(text(sql), local_variables)
-    return result
-    
-
 def get_hash_actions(config, sections=None):
     import sqlalchemy, re
 
@@ -204,13 +230,7 @@ def get_hash_actions(config, sections=None):
     else:
         sections = [sections]
 
-
-    # Do sync setup, if any
-    commands = config.get('sync:setup')
-    local_variables = __setup_local_variables()
-    if commands is not None:
-        for variable, command in commands:
-            __eval_python_command(variable, command, local_variables, config)
+    local_variables = config['_setup']
 
     hash_actions = {}
     for section_name in sections:
@@ -240,7 +260,7 @@ def get_hash_actions(config, sections=None):
         hash_actions[section_name] = {}
 
         # New records in table, not yet in hash table
-        # SELECT records.ids, MD5(records.data) FROM records LEFT OUTER JOIN (SELECT * FROM hashes WHERE sync_name = 'sync_name' AND section_name = 'section_name') h ON (CONCAT(records.ids::TEXT) = h.record_id) WHERE h.record_id IS NULL AND where_clause;
+        # SELECT records.ids, MD5(records.data) FROM records LEFT OUTER JOIN (SELECT * FROM record_hashes WHERE sync_name = 'sync_name' AND section_name = 'section_name') h ON (CONCAT(records.ids::TEXT) = h.record_id) WHERE h.record_id IS NULL AND where_clause;
         select_hash = sqlalchemy.sql.select([hash_table.c.record_id, hash_table.c.record_hash], (hash_table.c.sync_name == sync_name) & (hash_table.c.section_name == section_name)).alias('h')
         full_where_clause = (select_hash.c.record_id == None)
         if where_clause is not None:
@@ -251,15 +271,25 @@ def get_hash_actions(config, sections=None):
         result.close()
 
         # Deleted records, but still in hash table
-        # SELECT hashes.record_id FROM hashes LEFT OUTER JOIN records ON (CONCAT(records.ids::TEXT) = hashes.record_id) WHERE records.id1 IS NULL AND hashes.sync_name = 'sync_name' AND hashes.section_name = 'section_name';
-        select = sqlalchemy.sql.select([hash_table.c.record_id], (id_columns[0] == None) & (hash_table.c.sync_name == sync_name) & (hash_table.c.section_name == section_name)).select_from(hash_table.join(record_table, hash_table.c.record_id == record_id, isouter=True))
+        # SELECT record_hashes.record_id FROM record_hashes LEFT OUTER JOIN (SELECT * FROM users WHERE username < '14' AND username > '13') u ON (u.uuid::TEXT = record_hashes.record_id) WHERE u.uuid IS NULL AND record_hashes.sync_name = 'test' AND record_hashes.section_name = 'test';
+        # SELECT record_hashes.record_id FROM record_hashes LEFT OUTER JOIN records ON (CONCAT(records.ids::TEXT) = record_hashes.record_id) WHERE records.id1 IS NULL AND record_hashes.sync_name = 'sync_name' AND record_hashes.section_name = 'section_name';
+        if where_clause is not None:
+            select_records = sqlalchemy.sql.select(id_columns, where_clause).alias('r')
+            select_record_id = sqlalchemy.func.concat(*(
+                [sqlalchemy.sql.cast(column, sqlalchemy.Text()) + "," for column in select_records.c]))
+            select = sqlalchemy.sql.select([hash_table.c.record_id], (tuple(select_records.c)[0] == None) & (hash_table.c.sync_name == sync_name) & (hash_table.c.section_name == section_name)).select_from(hash_table.join(select_records, hash_table.c.record_id == select_record_id, isouter=True))
+        else:
+            select = sqlalchemy.sql.select([hash_table.c.record_id], (id_columns[0] == None) & (hash_table.c.sync_name == sync_name) & (hash_table.c.section_name == section_name)).select_from(hash_table.join(record_table, hash_table.c.record_id == record_id, isouter=True))
         result = database.execute(select)
-        hash_actions[section_name].update(dict([(unpack_record_id(row[0]), ('delete',)) for row in result]))
+        hash_actions[section_name].update(dict([(unpack_record_id(row[0], id_columns), ('delete',)) for row in result]))
         result.close()
 
         # Changed records
-        # SELECT records.ids, MD5(records.data) FROM records, hashes WHERE hashes.sync_name = 'sync_name' AND hashes.section_name = 'section_name' AND CONCAT(records.ids::TEXT) = hashes.record_id AND MD5(records.data) != hashes.record_hash;
-        select = sqlalchemy.sql.select(id_columns + [record_hash], (hash_table.c.sync_name == sync_name) & (hash_table.c.section_name == section_name) & (hash_table.c.record_id == record_id) & (hash_table.c.record_hash != record_hash));
+        # SELECT records.ids, MD5(records.data) FROM records, record_hashes WHERE record_hashes.sync_name = 'sync_name' AND record_hashes.section_name = 'section_name' AND CONCAT(records.ids::TEXT) = record_hashes.record_id AND MD5(records.data) != record_hashes.record_hash AND where_clause;
+        full_where_clause = (hash_table.c.sync_name == sync_name) & (hash_table.c.section_name == section_name) & (hash_table.c.record_id == record_id) & (hash_table.c.record_hash != record_hash)
+        if where_clause is not None:
+            full_where_clause = full_where_clause & where_clause
+        select = sqlalchemy.sql.select(id_columns + [record_hash], full_where_clause)
         result = database.execute(select)
         hash_actions[section_name].update(dict([(tuple(row)[:-1], ('update', tuple(row)[-1])) for row in result]))
         result.close()
@@ -267,21 +297,57 @@ def get_hash_actions(config, sections=None):
     return hash_actions
 
 
-def get_record(sync_name, section, record_id):
-    '''
-    > {key: value}
-    > None
-    '''
-    # TODO
-    return None
+def get_record(config, section_name, record_id):
+    import sqlalchemy
+    from syncserver import utils
+
+    section = config['section:' + section_name]
+    database = section['_database']
+    record_table = section['_table']
+    packed_id_columns = sqlalchemy.func.concat(*(
+        [sqlalchemy.sql.cast(column, sqlalchemy.Text()) + "," for column in section['_id_columns']]))
+    data_columns = section['_hash_columns']
+    select = sqlalchemy.sql.select(data_columns, packed_id_columns == record_id)
+    result = database.execute(select)
+    row = result.fetchone()
+    result.close()
+    return utils.struct_to_json(tuple(row))
 
 
-def insert_or_update_record(sync_name, section, record_id, record):
+def insert_record(config, section_name, record_id, record_data):
     '''
-    > hash
+    Insert into records table and record_hashes table.
     '''
-    # TODO
-    pass
+    import sqlalchemy
+    from syncserver import utils
+    from uuid import UUID
+
+    section = config['section:' + section_name]
+    database = section['_database']
+    record_table = section['_table']
+    id_columns = section['_id_columns']
+    data_columns = section['_hash_columns']
+
+    values = {}
+    for i in xrange(len(id_columns)):
+        values[id_columns[i].name] = record_id[i]
+    for i in xrange(len(data_columns)):
+        values[data_columns[i].name] = record_data[i]
+    record_table.insert().values(**values).execute()
+
+    hash_table = section['_hash_table']
+    packed_record_id = sqlalchemy.func.concat(*(
+        [sqlalchemy.sql.cast(str(value) if isinstance(value, UUID) else value, sqlalchemy.Text()) + "," for value in record_id]))
+    record_hash = sqlalchemy.func.md5(
+        sqlalchemy.func.concat(*(
+            [sqlalchemy.sql.cast(str(value) if isinstance(value, UUID) else value, sqlalchemy.Text()) + "," for value in record_data])))
+
+    hash_table.insert().values(**{
+        'sync_name': config['sync:main']['name'],
+        'section_name': section_name,
+        'record_id': packed_record_id,
+        'record_hash': record_hash,
+    }).execute()
 
 
 def delete_record(sync_name, section, record_id):

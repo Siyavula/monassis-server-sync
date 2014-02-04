@@ -1,4 +1,5 @@
 import requests, urlparse, json
+from syncserver import utils
 
 
 class SyncException(Exception):
@@ -62,27 +63,18 @@ class SyncSession:
         return json.loads(response.content)['hash-hash']
 
         
-    def get_hashes(self):
-        response = requests.get(
-            urlparse.urljoin(self.host_uri, '/%s/hashes'%(self.sync_name)),
-            **self.request_params)
-        self.__handle_unexpected_status_codes(response)
-        return json.loads(response.content)['hashes']
-
-        
-    def get_hash_actions(self):
+    def get_hash_actions(self, sync_time, client_vars={}):
         response = requests.get(
             urlparse.urljoin(self.host_uri, '/%s/hash-actions'%(self.sync_name)),
-            data = json.dumps({'lock_key': self.lock_key}),
+            data = json.dumps({'lock_key': self.lock_key, 'sync_time': sync_time.isoformat(), 'client_vars': dict([(key, utils.struct_to_json(value)) for key, value in client_vars.iteritems()])}),
             **self.request_params)
         self.__handle_unexpected_status_codes(response)
-        return json.loads(response.content)['hash_actions']
+        return utils.actions_from_json(json.loads(response.content)['hash_actions'])
 
 
     def get_record(self, section, record_id):
-        # TODO: how to process record_id
         response = requests.get(
             urlparse.urljoin(self.host_uri, '/%s/records/%s/%s'%(self.sync_name, section, record_id)),
             **self.request_params)
         self.__handle_unexpected_status_codes(response)
-        return json.loads(response.content)['record']
+        return utils.json_to_struct(json.loads(response.content)['record'])

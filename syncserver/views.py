@@ -65,74 +65,45 @@ def get_hash_hash_view(request):
     return {'hash-hash': record_database.get_hash_hash(config)}
 
 
-def __get_all_hashes_for(sync_name, section=None):
-    hash_hierarchy = {}
-    for h in RecordHash.get_all_for(sync_name):
-        section = hash_hierarchy.set_default(h['section'], {})
-        section[h['key']] = h['hash']
-    return hash_hierarchy
-
-
-@view_config(route_name='get_hashes', renderer='json')
-def get_hashes_view(request):
-    '''
-    GET /{name}/hashes
-        < {}
-        > {'hashes': {section_name: {ident: hash}}}
-    '''
-    sync_name = request.matchdict['name']
-    hash_hierarchy = __get_all_hashes_for(sync_name)
-    return {'hashes': hash_hierarchy}
-
-
 @view_config(route_name='get_hash_actions', renderer='json')
 def get_hash_actions_view(request):
     '''
     GET /{name}/hash-actions
-        < {'lock_key': uuid}
+        < {'lock_key': uuid, 'sync_time': iso8601, 'client_vars': {name: value}}
         > {'hash_actions': {section: {id: ('insert', hash) / ('update', hash) / ('delete',)}}}
         > raises 423: DatabaseLocked
     '''
     sync_name = request.matchdict['name']
     key = request.json_body.get('lock_key')
+    sync_time = utils.parse_iso8601(request.json_body['sync_time'])
+    client_vars = dict([(k, utils.json_to_struct(v)) for k, v in request.json_body['client_vars'].iteritems()])
     if not Lock.test_lock(sync_name, key):
         raise DatabaseLocked("You do not own the lock on the database, or have the wrong key")
 
-    config = record_database.load_config_from_name(sync_name, 'server')
+    config = record_database.load_config_from_name(sync_name, 'server', run_setup=True, sync_time=sync_time, client_vars=client_vars)
     hash_actions = record_database.get_hash_actions(config)
-    return {'hash_actions': hash_actions}
-
-
-@view_config(route_name='get_hashes_for_section', renderer='json')
-def get_hashes_for_section_view(request):
-    '''
-    GET /{name}/hashes/{section}
-        < {}
-        > {'hashes': {ident: hash}}
-    '''
-    sync_name = request.matchdict['name']
-    section = request.matchdict['section']
-    hashes = __get_all_hashes_for(sync_name, section)[section]
-    return {'hashes': hashes}
+    return {'hash_actions': utils.actions_to_json(hash_actions)}
 
 
 @view_config(route_name='get_hash_actions_for_section', renderer='json')
 def get_hash_actions_for_section_view(request):
     '''
     GET /{name}/hash-actions/{section}
-        < {'lock_key': uuid}
+        < {'lock_key': uuid, 'sync_time': iso8601, 'client_vars': {name: value}}
         > {'hash_actions': {section: {id: ('insert', hash) / ('update', hash) / ('delete',)}}}
         > raises 423: DatabaseLocked
     '''
     sync_name = request.matchdict['name']
     key = request.json_body.get('lock_key')
+    sync_time = utils.parse_iso8601(request.json_body['sync_time'])
+    client_vars = dict([(k, utils.json_to_struct(v)) for k, v in request.json_body['client_vars'].iteritems()])
     if not Lock.test_lock(sync_name, key):
         raise DatabaseLocked("You do not own the lock on the database, or have the wrong key")
 
     section = request.matchdict['section']
-    config = record_database.load_config_from_name(sync_name, 'server')
+    config = record_database.load_config_from_name(sync_name, 'server', run_setup=True, sync_time=sync_time, client_vars=client_vars)
     hash_actions = record_database.get_hash_actions(config, section=section)
-    return {'hash_actions': hash_actions}
+    return {'hash_actions': utils.actions_to_json(hash_actions)}
 
 
 @view_config(route_name='get_record', renderer='json')
@@ -144,7 +115,7 @@ def get_record_view(request):
         > raises 404
     '''
     sync_name = request.matchdict['name']
-    section = request.matchdict['key']
+    section = request.matchdict['section']
     record_id = request.matchdict['id']
     config = record_database.load_config_from_name(sync_name, 'server')
     record = record_database.get_record(config, section, record_id)
