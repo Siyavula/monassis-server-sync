@@ -614,7 +614,7 @@ def insert_or_update_record(config, section_name, record_id, record_data):
         insert_record(config, section_name, record_id, record_data)
 
 
-def delete_record(config, sync_name, section, record_id, volatile_hash=None):
+def delete_record(config, section_name, record_id, volatile_hash=None):
     '''
     Delete from records table.
     '''
