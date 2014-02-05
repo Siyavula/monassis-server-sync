@@ -85,6 +85,7 @@ def get_hash_actions_view(request):
         raise HTTPBadRequest("Bad sync_time format")
     client_vars = request.json_body.get('client_vars')
 
+    print 'Sync time:', repr(sync_time)
     config = record_database.load_config_from_name(sync_name, 'server', run_setup=True, sync_time=sync_time, client_vars=client_vars)
     hash_actions = record_database.get_hash_actions(config)
     return {'hash_actions': hash_actions}
