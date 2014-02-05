@@ -749,8 +749,8 @@ def get_record_and_compute_hash(config, section_name, record_id):
     id_columns = section['_id_columns']
     where_clause = reduce(lambda x, y: x & y, [id_columns[i] == record_id[i] for i in xrange(len(id_columns))])
     data_columns = section['_hash_columns']
-    packed_record_hash_columns = __pack_record_hash_columns(section['_hash_columns'] + [packed_record_hash_columns])
-    select = sqlalchemy.sql.select(data_columns, where_clause)
+    packed_record_hash_columns = __pack_record_hash_columns(data_columns)
+    select = sqlalchemy.sql.select(data_columns + [packed_record_hash_columns], where_clause)
     result = database.execute(select)
     row = result.fetchone()
     result.close()
