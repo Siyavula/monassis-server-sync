@@ -62,13 +62,13 @@ class SyncSession:
         return json.loads(response.content)['hash-hash']
 
         
-    def get_hash_actions(self, sync_time, client_vars={}):
+    def get_hash_actions(self, sync_time, client_vars):
         response = requests.get(
             urlparse.urljoin(self.host_uri, '/%s/hash-actions'%(self.sync_name)),
             data = json.dumps({
                 'lock_key': self.lock_key,
                 'sync_time': sync_time.isoformat(),
-                'client_vars': dict([(key, utils.struct_to_json(value)) for key, value in client_vars.iteritems()])}),
+                'client_vars': client_vars}),
             **self.request_params)
         self.__handle_unexpected_status_codes(response)
         return json.loads(response.content)['hash_actions']

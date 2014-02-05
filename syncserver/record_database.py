@@ -71,6 +71,12 @@ Required methods:
    < record_id: user-defined-record-id
    > user-defined-record
 
+  get_record_and_compute_hash(config, section_name, record_id)
+   < config: user-defined-config
+   < section_name: str
+   < record_id: user-defined-record-id
+   > user-defined-record, user-defined-hash
+
   insert_record(config, section_name, record_id, record_data, volatile_hash=None)
    < config: user-defined-config
    < section_name: str
@@ -319,6 +325,7 @@ def __struct_to_json(struct):
 
 def __json_to_struct(json):
     import datetime
+    from uuid import UUID
     if isinstance(json, list):
         return [__json_to_struct(x) for x in json]
     elif isinstance(json, basestring) and (json[:5] == 'UUID('):
@@ -481,10 +488,36 @@ def get_hash_actions(config, sections=None):
     return hash_actions
 
 
-record_id_to_url_string = __pack_record_id_values(values)
+record_id_to_url_string = __pack_record_id_values
 
 
-url_string_to_record_id = __unpack_record_id_values(values)
+url_string_to_record_id = __unpack_record_id_values
+
+
+def __base64_encode_record(record, section):
+    base64_columns = section.get('base64_encode')
+    if base64_columns is not None:
+        from base64 import b64encode
+        record = list(record)
+        hash_columns = section['hash_columns']
+        for column in base64_columns:
+            index = hash_columns.index(column)
+            record[index] = b64encode(record[index])
+        record = tuple(record)
+    return record
+
+
+def __base64_decode_record(record, section):
+    base64_columns = section.get('base64_encode')
+    if base64_columns is not None:
+        from base64 import b64decode
+        record = list(record)
+        hash_columns = section['hash_columns']
+        for column in base64_columns:
+            index = hash_columns.index(column)
+            record[index] = b64decode(record[index])
+        record = tuple(record)
+    return record
 
 
 def get_record(config, section_name, record_id):
@@ -494,17 +527,17 @@ def get_record(config, section_name, record_id):
     import sqlalchemy
     section = config['section:' + section_name]
     database = section['_database']
-    record_table = section['_table']
-    packed_id_columns = __pack_record_id_columns(section['_id_columns'])
+    id_columns = section['_id_columns']
+    where_clause = reduce(lambda x, y: x & y, [id_columns[i] == record_id[i] for i in xrange(len(id_columns))])
     data_columns = section['_hash_columns']
-    select = sqlalchemy.sql.select(data_columns, packed_id_columns == record_id)
+    select = sqlalchemy.sql.select(data_columns, where_clause)
     result = database.execute(select)
     row = result.fetchone()
     result.close()
     if row is None:
         return None
     else:
-        return __struct_to_json(tuple(row))
+        return __struct_to_json(__base64_encode_record(tuple(row), section))
 
 
 def insert_record(config, section_name, record_id, record_data, volatile_hash=None):
@@ -521,7 +554,7 @@ def insert_record(config, section_name, record_id, record_data, volatile_hash=No
     record_values = {}
     for i in xrange(len(id_columns)):
         record_values[id_columns[i].name] = record_id[i]
-    record_data = __json_to_struct(record_data)
+    record_data = __base64_decode_record(__json_to_struct(record_data), section)
     for i in xrange(len(data_columns)):
         record_values[data_columns[i].name] = record_data[i]
 
@@ -550,16 +583,15 @@ def update_record(config, section_name, record_id, record_data, volatile_hashes=
     # Setup for record update
     section = config['section:' + section_name]
     record_table = section['_table']
-    packed_record_id_columns = __pack_record_id_columns(section['_id_columns'])
-    packed_record_id_values = __pack_record_id_values_sql(record_id)
     data_columns = section['_hash_columns']
-    record_data = __json_to_struct(record_data)
+    record_data = __base64_decode_record(__json_to_struct(record_data), section)
     record_values = dict([(data_columns[i].name, record_data[i]) for i in xrange(len(data_columns))])
-
-    # Try to update record
-    where_clause = (packed_record_id_columns == packed_record_id_values)
+    id_columns = section['_id_columns']
+    where_clause = reduce(lambda x, y: x & y, [id_columns[i] == record_id[i] for i in xrange(len(id_columns))])
     if volatile_hashes is not None:
         where_clause = where_clause & (__pack_record_hash_columns(data_columns) == volatile_hashes[0])
+
+    # Try to update record
     affected_row_count = record_table.update().where(where_clause).values(**record_values).execute().rowcount
     if (affected_row_count == 0) and (volatile_hashes is not None):
         # Raise volatile exception if the database changed to
@@ -579,7 +611,7 @@ def update_record(config, section_name, record_id, record_data, volatile_hashes=
 def insert_or_update_record(config, section_name, record_id, record_data):
     affected_rows = update_record(config, section_name, record_id, record_data)
     if affected_rows == 0:
-        insert_record(config, section_name, record_id, record_data):
+        insert_record(config, section_name, record_id, record_data)
 
 
 def delete_record(config, sync_name, section, record_id, volatile_hash=None):
@@ -588,13 +620,12 @@ def delete_record(config, sync_name, section, record_id, volatile_hash=None):
     '''
     section = config['section:' + section_name]
     record_table = section['_table']
-    packed_record_id_columns = __pack_record_id_columns(section['_id_columns'])
-    packed_record_id_values = __pack_record_id_values_sql(record_id)
-
-    # Try to delete record
-    where_clause = (packed_record_id_columns == packed_record_id_values)
+    id_columns = section['_id_columns']
+    where_clause = reduce(lambda x, y: x & y, [id_columns[i] == record_id[i] for i in xrange(len(id_columns))])
     if volatile_hash is not None:
         where_clause = where_clause & (__pack_record_hash_columns(section['_hash_columns']) == volatile_hash)
+
+    # Try to delete record
     affected_row_count = record_table.delete().where(where_clause).execute().rowcount
     if (affected_row_count == 0) and (volatile_hash is not None):
         # Raise volatile exception if the database changed to
@@ -615,10 +646,11 @@ def __compute_hash(config, section_name, record_id):
     '''
     import sqlalchemy
     section = config['section:' + section_name]
-    packed_record_id_columns = __pack_record_id_columns(section['_id_columns'])
-    packed_record_id_values = __pack_record_id_values_sql(record_id)
+    database = section['_database']
+    id_columns = section['_id_columns']
+    where_clause = reduce(lambda x, y: x & y, [id_columns[i] == record_id[i] for i in xrange(len(id_columns))])
     packed_record_hash_columns = __pack_record_hash_columns(section['_hash_columns'])
-    select = sqlalchemy.sql.select([packed_record_hash_columns], packed_record_id_columns == packed_record_id_values)
+    select = sqlalchemy.sql.select([packed_record_hash_columns], where_clause)
     result = section['_database'].execute(select)
     row = result.fetchone()
     result.close()
@@ -687,9 +719,9 @@ def update_hash(config, section_name, record_id, record_hash):
 
 
 def insert_or_update_hash(config, section_name, record_id, record_hash):
-    affected_rows = update_hash(config, section_name, record_id, record_hash=record_hash)
+    affected_rows = update_hash(config, section_name, record_id, record_hash)
     if affected_rows == 0:
-        insert_hash(config, section_name, record_id, record_hash=record_hash)
+        insert_hash(config, section_name, record_id, record_hash)
 
 
 def delete_hash(config, section_name, record_id):
@@ -708,3 +740,22 @@ def delete_hash(config, section_name, record_id):
         .execute()\
         .rowcount
     return affected_rows
+
+
+def get_record_and_compute_hash(config, section_name, record_id):
+    import sqlalchemy
+    section = config['section:' + section_name]
+    database = section['_database']
+    id_columns = section['_id_columns']
+    where_clause = reduce(lambda x, y: x & y, [id_columns[i] == record_id[i] for i in xrange(len(id_columns))])
+    data_columns = section['_hash_columns']
+    packed_record_hash_columns = __pack_record_hash_columns(section['_hash_columns'] + [packed_record_hash_columns])
+    select = sqlalchemy.sql.select(data_columns, where_clause)
+    result = database.execute(select)
+    row = result.fetchone()
+    result.close()
+    if row is None:
+        return None, None
+    else:
+        row = tuple(row)
+        return __struct_to_json(__base64_encode_record(row[:-1], section)), row[-1]
