@@ -28,14 +28,15 @@ def setup_routes(config):
     config.add_route('unlock', '/{name}/unlock', request_method='PUT')
     config.add_route('get_hash_hash', '/{name}/hash-hash', request_method='GET')
     config.add_route('get_hash_actions', '/{name}/hash-actions', request_method='GET')
-    config.add_route('get_hash_actions_for_section', '/{name}/hash-actions/{section}', request_method='GET')
-
-    config.add_route('get_record', '/{name}/records/{section}/{id}', request_method='GET')
-    config.add_route('put_record', '/{name}/records/{section}/{id}', request_method='PUT')
-    config.add_route('delete_record', '/{name}/records/{section}/{id}', request_method='DELETE')
-    config.add_route('get_hash', '/{name}/hashes/{section}/{id}', request_method='GET')
-    config.add_route('put_hash', '/{name}/hashes/{section}/{id}', request_method='PUT')
-    config.add_route('delete_hash', '/{name}/hashes/{section}/{id}', request_method='DELETE')
+    config.add_route('get_record', '/{name}/{section}/{id}/record', request_method='GET')
+    config.add_route('put_record', '/{name}/{section}/{id}/record', request_method='PUT')
+    config.add_route('delete_record', '/{name}/{section}/{id}/record', request_method='DELETE')
+    config.add_route('get_hash', '/{name}/{section}/{id}/hash', request_method='GET')
+    config.add_route('put_hash', '/{name}/{section}/{id}/hash', request_method='PUT')
+    config.add_route('delete_hash', '/{name}/{section}/{id}/hash', request_method='DELETE')
+    config.add_route('get_record_and_hash', '/{name}/{section}/{id}/record-hash', request_method='GET')
+    config.add_route('put_record_and_hash', '/{name}/{section}/{id}/record-hash', request_method='PUT')
+    config.add_route('delete_record_and_hash', '/{name}/{section}/{id}/record-hash', request_method='DELETE')
 
 
 def setup_database(settings):

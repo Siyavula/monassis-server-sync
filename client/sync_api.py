@@ -66,7 +66,10 @@ class SyncSession:
     def get_hash_actions(self, sync_time, client_vars={}):
         response = requests.get(
             urlparse.urljoin(self.host_uri, '/%s/hash-actions'%(self.sync_name)),
-            data = json.dumps({'lock_key': self.lock_key, 'sync_time': sync_time.isoformat(), 'client_vars': dict([(key, utils.struct_to_json(value)) for key, value in client_vars.iteritems()])}),
+            data = json.dumps({
+                'lock_key': self.lock_key,
+                'sync_time': sync_time.isoformat(),
+                'client_vars': dict([(key, utils.struct_to_json(value)) for key, value in client_vars.iteritems()])}),
             **self.request_params)
         self.__handle_unexpected_status_codes(response)
         return utils.actions_from_json(json.loads(response.content)['hash_actions'])
@@ -74,7 +77,90 @@ class SyncSession:
 
     def get_record(self, section, record_id):
         response = requests.get(
-            urlparse.urljoin(self.host_uri, '/%s/records/%s/%s'%(self.sync_name, section, record_id)),
+            urlparse.urljoin(self.host_uri, '/%s/%s/%s/record'%(self.sync_name, section, record_id)),
+            **self.request_params)
+        self.__handle_unexpected_status_codes(response, [200, 404])
+        if response.status_code == 200:
+            return utils.json_to_struct(json.loads(response.content)['record'])
+        else:
+            return None
+
+
+    def put_record(self, section, record_id, record):
+        response = requests.put(
+            urlparse.urljoin(self.host_uri, '/%s/%s/%s/record'%(self.sync_name, section, record_id)),
+            data = json.dumps({
+                'lock_key': self.lock_key,
+                'record': utils.struct_to_json(record)}),
             **self.request_params)
         self.__handle_unexpected_status_codes(response)
-        return utils.json_to_struct(json.loads(response.content)['record'])
+
+
+    def delete_record(self, section, record_id):
+        response = requests.delete(
+            urlparse.urljoin(self.host_uri, '/%s/%s/%s/record'%(self.sync_name, section, record_id)),
+            data = json.dumps({
+                'lock_key': self.lock_key}),
+            **self.request_params)
+        self.__handle_unexpected_status_codes(response)
+
+
+    def get_hash(self, section, record_id):
+        response = requests.get(
+            urlparse.urljoin(self.host_uri, '/%s/%s/%s/hash'%(self.sync_name, section, record_id)),
+            **self.request_params)
+        self.__handle_unexpected_status_codes(response, [200, 404])
+        if response.status_code == 200:
+            return json.loads(response.content)['hash']
+        else:
+            return None
+
+
+    def put_hash(self, section, record_id, hash):
+        response = requests.put(
+            urlparse.urljoin(self.host_uri, '/%s/%s/%s/hash'%(self.sync_name, section, record_id)),
+            data = json.dumps({
+                'lock_key': self.lock_key,
+                'hash': hash}),
+            **self.request_params)
+        self.__handle_unexpected_status_codes(response)
+
+
+    def delete_hash(self, section, record_id):
+        response = requests.delete(
+            urlparse.urljoin(self.host_uri, '/%s/%s/%s/hash'%(self.sync_name, section, record_id)),
+            data = json.dumps({
+                'lock_key': self.lock_key}),
+            **self.request_params)
+        self.__handle_unexpected_status_codes(response)
+
+
+    def get_record_and_hash(self, section, record_id):
+        response = requests.get(
+            urlparse.urljoin(self.host_uri, '/%s/%s/%s/record-hash'%(self.sync_name, section, record_id)),
+            **self.request_params)
+        self.__handle_unexpected_status_codes(response, [200, 404])
+        if response.status_code == 200:
+            return utils.json_to_struct(json.loads(response.content)['record']), json.loads(response.content)['hash']
+        else:
+            return None
+
+
+    def put_record_and_hash(self, section, record_id, record, hash):
+        response = requests.put(
+            urlparse.urljoin(self.host_uri, '/%s/%s/%s/record-hash'%(self.sync_name, section, record_id)),
+            data = json.dumps({
+                'lock_key': self.lock_key,
+                'record': utils.struct_to_json(record),
+                'hash': hash}),
+            **self.request_params)
+        self.__handle_unexpected_status_codes(response)
+
+
+    def delete_record_and_hash(self, section, record_id):
+        response = requests.delete(
+            urlparse.urljoin(self.host_uri, '/%s/%s/%s/record-hash'%(self.sync_name, section, record_id)),
+            data = json.dumps({
+                'lock_key': self.lock_key}),
+            **self.request_params)
+        self.__handle_unexpected_status_codes(response)

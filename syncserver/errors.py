@@ -38,3 +38,7 @@ class SyncServerError(object):
 
 class DatabaseLocked(SyncServerError, HTTPLocked):
     pass
+
+
+class VolatileConflict(Exception):
+    pass

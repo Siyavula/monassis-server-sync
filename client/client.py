@@ -1,21 +1,3 @@
-'''
-Apply inserts and updates remotely
-  retrieve local record (we'll do the update/insert even if it has changed since sync start)
-  PUT /office-qa/records/section-name/id-columns {'lock_key': UUID, 'record': {key: value}} -> {'hash': UUID}
-    (this will also update the hash)
-   - on network problems: retry
-   - on complete fail: quit
-	 - on hash mismatch, which really shouldn't happen: raise a huge exception
-
-Apply deletes remotely
-  DELETE /office-qa/records/section-name/id-columns {'lock_key': UUID} -> {}
-    (this will also delete the hash)
-   - on network problems: retry
-   - on complete fail: quit
-
-Trigger client onchange events
-'''
-
 if __name__ == '__main__':
     import sys, datetime
     import sync_api
@@ -73,89 +55,134 @@ if __name__ == '__main__':
         client_actions[section_name] = client_data_actions
         server_actions[section_name] = server_data_actions
 
+    def remote_hash_action(action, hash, section_name, record_id):
+        # Will look up outside of function scope: record_database, sync_session
+        if action is not None:
+            packed_record_id = record_database.pack_record_id(record_id)
+            if action in ['insert-hash', 'update-hash']:
+                assert hash is not None
+                sync_session.put_hash(section_name, packed_record_id, hash)
+            else:
+                assert action == 'delete-hash'
+                sync_session.delete_hash(section_name, packed_record_id)
+
+    def local_hash_action(action, hash, section_name, record_id):
+        # Will look up outside of function scope: record_database, config
+        if action == 'insert-hash':
+            assert hash is not None
+            record_database.insert_hash(config, section_name, record_id, hash)
+        elif action == 'update-hash':
+            assert hash is not None
+            record_database.update_hash(config, section_name, record_id, hash)
+        elif action == 'delete-hash':
+            record_database.delete_hash(config, section_name, record_id)
+        else:
+            assert action is None
+
     import pdb
     pdb.set_trace()
 
-    # Apply hash-only actions
-    for section_name in config['sync:main']['sections']:
-        for record_id, actions in client_actions[section_name].iteritems():
-            my_action = actions['my-action']
-            if my_action[-5:] != '-hash':
-                continue
-            hash = actions['hash']
-            other_action = actions.get('other-action')
-            if other_action is not None:
-                packed_record_id = record_database.pack_record_id(record_id)
-                if other_action in ['insert-hash', 'update-hash']:
-                    sync_session.put_hash(section_name, packed_record_id, hash)
+    # Apply hash-only actions for both client and server
+    for source in [client_actions, client_actions]:
+        for section_name in config['sync:main']['sections']:
+            for record_id, actions in source[section_name].iteritems():
+                my_action = actions['my-action']
+                if my_action[-5:] != '-hash':
+                    continue
+                new_hash = actions.get('new-hash')
+                other_action = actions.get('other-action')
+                if source == client_actions:
+                    client_action = my_action
+                    server_action = other_action
                 else:
-                    assert other_action == 'delete-hash'
-                    sync_session.delete_hash(section_name, packed_record_id)
-            if my_action == 'insert-hash':
-                record_database.insert_hash(config, section_name, record_id, hash)
-            elif my_action == 'update-hash':
-                record_database.update_hash(config, section_name, record_id, hash)
-            else:
-                assert my_action == 'delete-hash'
-                record_database.delete_hash(config, section_name, record_id)
+                    client_action = other_action
+                    server_action = my_action
+                remote_hash_action(server_action, new_hash, section_name, record_id)
+                local_hash_action(client_action, new_hash, section_name, record_id)
+
+    # TODO: Trigger client onchange events
 
     # Apply inserts locally
     for section_name in config['sync:main']['sections']:
         for record_id, actions in client_actions[section_name].iteritems():
             if actions['my-action'] != 'insert':
                 continue
-            hash = actions['hash']
+            new_hash = actions['new-hash']
+            server_action = actions.get('other-action')
             packed_record_id = record_database.pack_record_id(record_id)
             record_data = sync_session.get_record(section_name, packed_record_id)
-            other_action = actions.get('other-action')
-            if other_action is not None:
-                if other_action in ['insert-hash', 'update-hash']:
-                    sync_session.put_hash(section_name, packed_record_id, hash)
-                else:
-                    assert other_action == 'delete-hash'
-                    sync_session.delete_hash(section_name, packed_record_id)
+            remote_hash_action(server_action, new_hash, section_name, record_id)
             try:
-                record_database.insert_record(config, section_name, record_id, record_data, volatile=True, hash=hash)
+                record_database.insert_record(config, section_name, record_id, record_data, volatile_hash=new_hash)
             except VolatileException:
-                record_database.insert_hash(config, section_name, record_id, hash)
-        
+                section = config['section:' + section_name]
+                if section['merge'] in ['slave', 'child']:
+                    record_database.update_record(config, section_name, record_id, record_data)
+            record_database.insert_record_hash(config, section_name, record_id, record_hash=new_hash)
+
     # Apply updates locally
     for section_name in config['sync:main']['sections']:
         for record_id, actions in client_actions[section_name].iteritems():
-            if actions[0] != 'update':
+            if actions['my-action'] != 'update':
                 continue
-            hash = actions['hash']
+            old_hash = actions['old-hash']
+            new_hash = actions['new-hash']
+            server_action = actions.get('other-action')
             packed_record_id = record_database.pack_record_id(record_id)
             record_data = sync_session.get_record(section_name, packed_record_id)
-            other_action = actions.get('other-action')
-            if other_action is not None:
-                if other_action in ['insert-hash', 'update-hash']:
-                    sync_session.put_hash(section_name, packed_record_id, hash)
-                else:
-                    assert other_action == 'delete-hash'
-                    sync_session.delete_hash(section_name, packed_record_id)
+            remote_hash_action(server_action, new_hash, section_name, record_id)
             try:
-                record_database.update_record(config, section_name, record_id, record_data, volatile=True, hash=hash)
-            except VolatileException:
-                record_database.update_hash(config, section_name, record_id, hash)
+                record_database.update_record(config, section_name, record_id, record_data, volatile_hashes=(old_hash, new_hash))
+            except VolatileException, error:
+                section = config['section:' + section_name]
+                if section['merge'] in ['slave', 'child']:
+                    if 'deleted' in error.message:
+                        record_database.insert_record(config, section_name, record_id, record_data)
+                    else:
+                        assert 'updated' in error.message
+                        record_database.update_record(config, section_name, record_id, record_data)
+            record_database.update_record_hash(config, section_name, record_id, record_hash=new_hash)
         
     # Apply deletes locally
     for section_name in config['sync:main']['sections']:
         for record_id, actions in client_actions[section_name].iteritems():
-            if actions[0] != 'delete':
+            if actions['my-action'] != 'delete':
                 continue
+            old_hash = actions['old-hash']
             packed_record_id = record_database.pack_record_id(record_id)
-            other_action = actions.get('other-action')
-            if other_action is not None:
-                assert other_action == 'delete-hash'
-                sync_session.delete_hash(section_name, packed_record_id)
+            server_action = actions.get('other-action')
+            remote_hash_action(server_action, None, section_name, record_id)
             try:
-                record_database.delete_record(config, section_name, record_id, volatile=True)
+                record_database.delete_record(config, section_name, record_id, volatile_hash=old_hash)
             except VolatileException:
-                record_database.delete_hash(config, section_name, record_id)
+                section = config['section:' + section_name]
+                if section['merge'] in ['slave', 'child']:
+                    record_database.delete_record(config, section_name, record_id, record_data)
+            record_database.delete_record_hash(config, section_name, record_id)
         
-    # TODO: Send records to server
-    sys.exit()
+    # Apply inserts and updates remotely. Still want to do inserts
+    # before updates to maintain database integrity.
+    for server_action in ['insert', 'update']:
+        for section_name in config['sync:main']['sections']:
+            for record_id, actions in server_actions[section_name].iteritems():
+                if actions['my-action'] != server_action:
+                    continue
+                new_hash = actions['new-hash']
+                client_action = actions.get('other-action')
+                packed_record_id = record_database.pack_record_id(record_id)
+                record_data = record_database.get_record(config, section_name, record_id)
+                sync_session.put_record_and_hash(section_name, packed_record_id, record, new_hash)
+                local_hash_action(client_action, new_hash, section_name, record_id)
+
+    # Apply deletes remotely.
+    for section_name in config['sync:main']['sections']:
+        for record_id, actions in server_actions[section_name].iteritems():
+            if actions['my-action'] != 'delete':
+                continue
+            client_action = actions.get('other-action')
+            packed_record_id = record_database.pack_record_id(record_id)
+            sync_session.delete_record_and_hash(section_name, packed_record_id)
+            local_hash_action(client_action, None, section_name, record_id)
 
     # Sanity check our updated hashes
     client_hash_hash = record_database.get_hash_hash(config=config)

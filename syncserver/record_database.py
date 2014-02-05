@@ -178,11 +178,7 @@ def get_all_hashes_for(sync_name=None, config=None, section=None):
     hashes = {}
     for section_name in config['sync:main']['sections']:
         section = config['section:' + section_name]
-        select = sqlalchemy.sql.select(
-            section['_id_columns'] + [
-                sqlalchemy.func.md5(
-                    sqlalchemy.func.concat(*(
-                        [sqlalchemy.sql.cast(column, sqlalchemy.Text()) + "," for column in section['_hash_columns']])))])
+        select = sqlalchemy.sql.select(section['_id_columns'] + [__pack_record_hash_columns(section['_hash_columns'])])
         result = section['_database'].execute(select)
         hashes[section_name] = dict([(tuple(row)[:-1], tuple(row)[-1]) for row in result])
         result.close()
@@ -190,15 +186,35 @@ def get_all_hashes_for(sync_name=None, config=None, section=None):
 """
 
 
-def pack_record_id(columns):
-    return ','.join([str(c) for c in columns]) + ','
+def __pack_record_id_values(values):
+    return ''.join([str(v) + ',' for v in values])
 
 
-def unpack_record_id(packed_string, id_columns):
-    # TODO
-    import pdb
-    pdb.set_trace()
-    return columns
+def __pack_record_id_values_sql(values):
+    import sqlalchemy
+    from uuid import UUID
+    return sqlalchemy.func.concat(*([sqlalchemy.sql.cast(str(value) if isinstance(value, UUID) else value, sqlalchemy.Text()) + "," for value in values]))
+
+
+def __pack_record_id_columns(columns):
+    import sqlalchemy
+    return sqlalchemy.func.concat(*([sqlalchemy.sql.cast(column, sqlalchemy.Text()) + "," for column in columns]))
+
+
+def __pack_record_hash_values(values):
+    from hashlib import md5
+    return md5(''.join([str(value) + ',' for value in values])).hexdigest()
+
+
+def __pack_record_hash_values_sql(values):
+    import sqlalchemy
+    from uuid import UUID
+    return sqlalchemy.func.md5(sqlalchemy.func.concat(*([sqlalchemy.sql.cast(str(value) if isinstance(value, UUID) else value, sqlalchemy.Text()) + "," for value in values])))
+
+
+def __pack_record_hash_columns(columns):
+    import sqlalchemy
+    return sqlalchemy.func.md5(sqlalchemy.func.concat(*([sqlalchemy.sql.cast(column, sqlalchemy.Text()) + "," for column in columns])))
 
 
 def get_hash_hash(config):
@@ -240,11 +256,8 @@ def get_hash_actions(config, sections=None):
         hash_table = section['_hash_table']
         id_columns = section['_id_columns']
         data_columns = section['_hash_columns']
-        record_id = sqlalchemy.func.concat(*(
-            [sqlalchemy.sql.cast(column, sqlalchemy.Text()) + "," for column in id_columns]))
-        record_hash = sqlalchemy.func.md5(
-            sqlalchemy.func.concat(*(
-                [sqlalchemy.sql.cast(column, sqlalchemy.Text()) + "," for column in data_columns])))
+        record_id = __pack_record_id_columns(id_columns)
+        record_hash = __pack_record_hash_columns(data_columns)
         where_clause = section.get('where')
         if where_clause is not None:
             query_variables = dict(record_table.c)
@@ -256,7 +269,7 @@ def get_hash_actions(config, sections=None):
                 offset += 10 # len("__setup['']") - len(":")
             where_clause = eval(where_clause, query_variables, query_variables)
 
-        # {id: ('insert', hash) / ('update', hash) / ('delete',)}
+        # {id: ('insert', new_hash) or ('update', old_hash, new_hash) or ('delete', old_hash)}
         hash_actions[section_name] = {}
 
         # New records in table, not yet in hash table
@@ -271,87 +284,247 @@ def get_hash_actions(config, sections=None):
         result.close()
 
         # Deleted records, but still in hash table
-        # SELECT record_hashes.record_id FROM record_hashes LEFT OUTER JOIN (SELECT * FROM users WHERE username < '14' AND username > '13') u ON (u.uuid::TEXT = record_hashes.record_id) WHERE u.uuid IS NULL AND record_hashes.sync_name = 'test' AND record_hashes.section_name = 'test';
+        # SELECT record_hashes.record_id, record_hashes.record_hash FROM record_hashes LEFT OUTER JOIN (SELECT * FROM users WHERE username < '14' AND username > '13') u ON (u.uuid::TEXT = record_hashes.record_id) WHERE u.uuid IS NULL AND record_hashes.sync_name = 'test' AND record_hashes.section_name = 'test';
         # SELECT record_hashes.record_id FROM record_hashes LEFT OUTER JOIN records ON (CONCAT(records.ids::TEXT) = record_hashes.record_id) WHERE records.id1 IS NULL AND record_hashes.sync_name = 'sync_name' AND record_hashes.section_name = 'section_name';
         if where_clause is not None:
             select_records = sqlalchemy.sql.select(id_columns, where_clause).alias('r')
-            select_record_id = sqlalchemy.func.concat(*(
-                [sqlalchemy.sql.cast(column, sqlalchemy.Text()) + "," for column in select_records.c]))
-            select = sqlalchemy.sql.select([hash_table.c.record_id], (tuple(select_records.c)[0] == None) & (hash_table.c.sync_name == sync_name) & (hash_table.c.section_name == section_name)).select_from(hash_table.join(select_records, hash_table.c.record_id == select_record_id, isouter=True))
+            select_record_id = __pack_record_id_columns(select_records.c)
+            select = sqlalchemy.sql.select([hash_table.c.record_id, hash_table.c.record_hash], (tuple(select_records.c)[0] == None) & (hash_table.c.sync_name == sync_name) & (hash_table.c.section_name == section_name)).select_from(hash_table.join(select_records, hash_table.c.record_id == select_record_id, isouter=True))
         else:
-            select = sqlalchemy.sql.select([hash_table.c.record_id], (id_columns[0] == None) & (hash_table.c.sync_name == sync_name) & (hash_table.c.section_name == section_name)).select_from(hash_table.join(record_table, hash_table.c.record_id == record_id, isouter=True))
+            select = sqlalchemy.sql.select([hash_table.c.record_id, hash_table.c.record_hash], (id_columns[0] == None) & (hash_table.c.sync_name == sync_name) & (hash_table.c.section_name == section_name)).select_from(hash_table.join(record_table, hash_table.c.record_id == record_id, isouter=True))
         result = database.execute(select)
-        hash_actions[section_name].update(dict([(unpack_record_id(row[0], id_columns), ('delete',)) for row in result]))
+        hash_actions[section_name].update(dict([(unpack_record_id(row[0], id_columns), ('delete', row[1])) for row in result]))
         result.close()
 
         # Changed records
-        # SELECT records.ids, MD5(records.data) FROM records, record_hashes WHERE record_hashes.sync_name = 'sync_name' AND record_hashes.section_name = 'section_name' AND CONCAT(records.ids::TEXT) = record_hashes.record_id AND MD5(records.data) != record_hashes.record_hash AND where_clause;
+        # SELECT records.ids, record_hashes.record_hash, MD5(records.data) FROM records, record_hashes WHERE record_hashes.sync_name = 'sync_name' AND record_hashes.section_name = 'section_name' AND CONCAT(records.ids::TEXT) = record_hashes.record_id AND MD5(records.data) != record_hashes.record_hash AND where_clause;
         full_where_clause = (hash_table.c.sync_name == sync_name) & (hash_table.c.section_name == section_name) & (hash_table.c.record_id == record_id) & (hash_table.c.record_hash != record_hash)
         if where_clause is not None:
             full_where_clause = full_where_clause & where_clause
-        select = sqlalchemy.sql.select(id_columns + [record_hash], full_where_clause)
+        select = sqlalchemy.sql.select(id_columns + [hash_table.c.record_hash, record_hash], full_where_clause)
         result = database.execute(select)
-        hash_actions[section_name].update(dict([(tuple(row)[:-1], ('update', tuple(row)[-1])) for row in result]))
+        hash_actions[section_name].update(dict([(tuple(row)[:-2], ('update',) + tuple(row)[-2:]) for row in result]))
         result.close()
 
     return hash_actions
 
 
 def get_record(config, section_name, record_id):
+    '''
+    Retrieve row from records table.
+    '''
     import sqlalchemy
     from syncserver import utils
 
     section = config['section:' + section_name]
     database = section['_database']
     record_table = section['_table']
-    packed_id_columns = sqlalchemy.func.concat(*(
-        [sqlalchemy.sql.cast(column, sqlalchemy.Text()) + "," for column in section['_id_columns']]))
+    packed_id_columns = __pack_record_id_columns(section['_id_columns'])
     data_columns = section['_hash_columns']
     select = sqlalchemy.sql.select(data_columns, packed_id_columns == record_id)
     result = database.execute(select)
     row = result.fetchone()
     result.close()
-    return utils.struct_to_json(tuple(row))
+    if row is None:
+        return None
+    else:
+        return utils.struct_to_json(tuple(row))
 
 
-def insert_record(config, section_name, record_id, record_data):
+def insert_record(config, section_name, record_id, record_data, volatile_hash=None):
     '''
-    Insert into records table and record_hashes table.
+    Insert into records table.
     '''
     import sqlalchemy
-    from syncserver import utils
-    from uuid import UUID
 
+    # Setup for record insert
     section = config['section:' + section_name]
-    database = section['_database']
     record_table = section['_table']
     id_columns = section['_id_columns']
     data_columns = section['_hash_columns']
-
-    values = {}
+    record_values = {}
     for i in xrange(len(id_columns)):
-        values[id_columns[i].name] = record_id[i]
+        record_values[id_columns[i].name] = record_id[i]
     for i in xrange(len(data_columns)):
-        values[data_columns[i].name] = record_data[i]
-    record_table.insert().values(**values).execute()
+        record_values[data_columns[i].name] = record_data[i]
 
+    # Try to insert record
+    try:
+        record_table.insert().values(**record_values).execute()
+    except sqlalchemy.exc.IntegrityError, error:
+        if ('duplicate key' not in error.message) or (volatile_hash is None):
+            # Treat as potentially volatile record only on duplicate key error
+            # Reraise if the database is non-volatile
+            raise error
+        else:
+            # Raise volatile exception if the database changed to
+            # something we're not expecting
+            if compute_record_hash(config, section_name, record_id) != volatile_hash:
+                from syncserver.errors import VolatileConflict
+                raise VolatileConflict, "Tried to insert record, but found another, different record already there (section_name=%s, record_id=%s, record_data=%s)"%(repr(section_name), repr(record_id), repr(record_data))
+
+
+def update_record(config, section_name, record_id, record_data, volatile_hashes=None):
+    '''
+    Update in records table.
+    volatile_hashes: (old_hash, new_hash)
+    returns number of rows updated
+    '''
+    # Setup for record update
+    section = config['section:' + section_name]
+    record_table = section['_table']
+    packed_record_id_columns = __pack_record_id_columns(section['_id_columns'])
+    packed_record_id_values = __pack_record_id_values_sql(record_id)
+    data_columns = section['_hash_columns']
+    record_values = dict([(data_columns[i].name, record_data[i]) for i in xrange(len(data_columns))])
+
+    # Try to update record
+    where_clause = (packed_record_id_columns == packed_record_id_values)
+    if volatile_hashes is not None:
+        where_clause = where_clause & (__pack_record_hash_columns(data_columns) == volatile_hashes[0])
+    affected_row_count = record_table.update().where(where_clause).values(**record_values).execute().rowcount
+    if (affected_row_count == 0) and (volatile_hashes is not None):
+        # Raise volatile exception if the database changed to
+        # something we're not expecting
+        h = compute_record_hash(config, section_name, record_id)
+        if h is None:
+            from syncserver.errors import VolatileConflict
+            raise VolatileConflict, "Tried to update record, but found that it had been deleted (section_name=%s, record_id=%s, record_data=%s)"%(repr(section_name), repr(record_id), repr(record_data))
+        elif h != volatile_hashes[1]:
+            from syncserver.errors import VolatileConflict
+            raise VolatileConflict, "Tried to update record, but found that it had been updated to something else (section_name=%s, record_id=%s, record_data=%s)"%(repr(section_name), repr(record_id), repr(record_data))
+        else:
+            return 1 # Pretend that 1 row got updated since the new hashes match
+    return affected_row_count
+
+
+def insert_or_update_record(config, section_name, record_id, record_data):
+    affected_rows = update_record(config, section_name, record_id, record_data)
+    if affected_rows == 0:
+        insert_record(config, section_name, record_id, record_data):
+
+
+def delete_record(config, sync_name, section, record_id, volatile_hash=None):
+    '''
+    Delete from records table.
+    '''
+    section = config['section:' + section_name]
+    record_table = section['_table']
+    packed_record_id_columns = __pack_record_id_columns(section['_id_columns'])
+    packed_record_id_values = __pack_record_id_values_sql(record_id)
+
+    # Try to delete record
+    where_clause = (packed_record_id_columns == packed_record_id_values)
+    if volatile_hash is not None:
+        where_clause = where_clause & (__pack_record_hash_columns(section['_hash_columns']) == volatile_hash)
+    affected_row_count = record_table.delete().where(where_clause).execute().rowcount
+    if (affected_row_count == 0) and (volatile_hash is not None):
+        # Raise volatile exception if the database changed to
+        # something we're not expecting
+        if compute_record_hash(config, section_name, record_id) is not None:
+            from syncserver.errors import VolatileConflict
+            raise VolatileConflict, "Tried to delete record, but found that it had been updated to something else (section_name=%s, record_id=%s, record_data=%s)"%(repr(section_name), repr(record_id), repr(record_data))
+        else:
+            return 1 # Pretend that 1 row got deleted since no rows match record_id
+    return affected_row_count
+
+
+def get_record_hash(config, section_name, record_id):
+    '''
+    Retrieve row from record hashes table.
+    '''
+    import sqlalchemy
+    section = config['section:' + section_name]
     hash_table = section['_hash_table']
-    packed_record_id = sqlalchemy.func.concat(*(
-        [sqlalchemy.sql.cast(str(value) if isinstance(value, UUID) else value, sqlalchemy.Text()) + "," for value in record_id]))
-    record_hash = sqlalchemy.func.md5(
-        sqlalchemy.func.concat(*(
-            [sqlalchemy.sql.cast(str(value) if isinstance(value, UUID) else value, sqlalchemy.Text()) + "," for value in record_data])))
-
-    hash_table.insert().values(**{
-        'sync_name': config['sync:main']['name'],
-        'section_name': section_name,
-        'record_id': packed_record_id,
-        'record_hash': record_hash,
-    }).execute()
+    packed_record_id_values = __pack_record_id_values_sql(record_id)
+    select = sqlalchemy.sql.select([hash_table.c.record_hash], (hash_table.c.sync_name == config['sync:main']['name']) & (hash_table.c.section_name == section_name) & (hash_table.c.record_id == packed_record_id_values))
+    result = section['_database'].execute(select)
+    row = result.fetchone()
+    result.close()
+    if row is None:
+        return None
+    else:
+        return row[0]
 
 
-def delete_record(sync_name, section, record_id):
+def compute_record_hash(config, section_name, record_id):
     '''
+    Compute the hash of a given row from records table. This does
+    *not* retrieve it from the record hashes table. See
+    get_record_hash() for that.
     '''
-    # TODO
-    pass
+    import sqlalchemy
+    section = config['section:' + section_name]
+    packed_record_id_columns = __pack_record_id_columns(section['_id_columns'])
+    packed_record_id_values = __pack_record_id_values_sql(record_id)
+    packed_record_hash_columns = __pack_record_hash_columns(section['_hash_columns'])
+    select = sqlalchemy.sql.select([packed_record_hash_columns], packed_record_id_columns == packed_record_id_values)
+    result = section['_database'].execute(select)
+    row = result.fetchone()
+    result.close()
+    if row is None:
+        return None
+    else:
+        return row[0]
+
+
+def insert_record_hash(config, section_name, record_id, record_hash=None, record_data=None):
+    '''
+    Insert into record hashes table.
+    '''
+    section = config['section:' + section_name]
+    packed_record_id = __pack_record_id_values_sql(record_id)
+    if record_hash is None:
+        record_hash = __pack_record_hash_values_sql(record_data)
+    section['_hash_table']\
+        .insert()\
+        .values(
+            sync_name = config['sync:main']['name'],
+            section_name = section_name,
+            record_id = packed_record_id,
+            record_hash = record_hash,
+        )\
+        .execute()
+
+
+def update_record_hash(config, section_name, record_id, record_hash=None, record_data=None):
+    '''
+    Update record hashes table.
+    '''
+    section = config['section:' + section_name]
+    hash_table = section['_hash_table']
+    packed_record_id_values = __pack_record_id_values_sql(record_id)
+    if record_hash is None:
+        record_hash = __pack_record_hash_values_sql(record_data)
+    affected_rows = hash_table.update()\
+        .where(
+            (hash_table.c.sync_name == config['sync:main']['name']) &\
+            (hash_table.c.section_name == section_name) &\
+            (hash_table.c.record_id == packed_record_id_values)
+        )\
+        .values(record_hash = record_hash)\
+        .execute()\
+        .rowcount
+    return affected_rows
+
+
+def insert_or_update_hash(config, section_name, record_id, record_hash):
+    affected_rows = update_record_hash(config, section_name, record_id, record_hash=record_hash)
+    if affected_rows == 0:
+        insert_record_hash(config, section_name, record_id, record_hash=record_hash)
+
+
+def delete_record_hash(config, section_name, record_id):
+    '''
+    Update record hashes table.
+    '''
+    section = config['section:' + section_name]
+    hash_table = section['_hash_table']
+    packed_record_id_values = __pack_record_id_values_sql(record_id)
+    hash_table.delete()\
+        .where(
+            (hash_table.c.sync_name == config['sync:main']['name']) &\
+            (hash_table.c.section_name == section_name) &\
+            (hash_table.c.record_id == packed_record_id_values)
+        )\
+        .execute()
