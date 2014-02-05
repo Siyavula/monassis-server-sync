@@ -25,7 +25,7 @@ def lock_view(request):
     '''
     PUT /{name}/lock
         < {}
-        > {'lock_key': uuid}
+        > {'lock_key': string}
         > raises 423: DatabaseLocked
     '''
     sync_name = request.matchdict['name']
@@ -40,7 +40,7 @@ def lock_view(request):
 def unlock_view(request):
     '''
     PUT /{name}/unlock
-        < {'lock_key': uuid}
+        < {'lock_key': string}
         > {}
         > raises 423: DatabaseLocked
     '''
@@ -58,7 +58,7 @@ def get_hash_hash_view(request):
     '''
     GET /{name}/hash-hash
         < {}
-        > {'hash-hash': hash}
+        > {'hash-hash': user-defined-hash-hash}
     '''
     sync_name = request.matchdict['name']
     config = record_database.load_config_from_name(sync_name, 'server')
@@ -69,20 +69,25 @@ def get_hash_hash_view(request):
 def get_hash_actions_view(request):
     '''
     GET /{name}/hash-actions
-        < {'lock_key': uuid, 'sync_time': iso8601, 'client_vars': {name: value}}
-        > {'hash_actions': {section: {id: ('insert', hash) / ('update', hash) / ('delete',)}}}
+        < {'lock_key': string, 'sync_time': iso8601 (optional), 'client_vars': user-defined-client-vars (optional)}
+        > {'hash_actions': {section_name (string): [[user-defined-record-id, ['insert', user-defined-hash] or ['update', user-defined-hash, user-defined-hash] or ['delete', user-defined-hash]]]}}
+        > raises 400: HTTPBadRequest
         > raises 423: DatabaseLocked
     '''
     sync_name = request.matchdict['name']
     key = request.json_body.get('lock_key')
-    sync_time = utils.parse_iso8601(request.json_body['sync_time'])
-    client_vars = dict([(k, utils.json_to_struct(v)) for k, v in request.json_body['client_vars'].iteritems()])
     if not Lock.test_lock(sync_name, key):
         raise DatabaseLocked("You do not own the lock on the database, or have the wrong key")
+    sync_time = request.json_body.get('sync_time')
+    try:
+        sync_time = utils.parse_iso8601(sync_time)
+    except ValueError:
+        raise HTTPBadRequest("Bad sync_time format")
+    client_vars = request.json_body.get('client_vars')
 
     config = record_database.load_config_from_name(sync_name, 'server', run_setup=True, sync_time=sync_time, client_vars=client_vars)
     hash_actions = record_database.get_hash_actions(config)
-    return {'hash_actions': utils.actions_to_json(hash_actions)}
+    return {'hash_actions': hash_actions}
 
 
 @view_config(route_name='get_record', renderer='json')
@@ -90,14 +95,14 @@ def get_record_view(request):
     '''
     GET /{name}/{section}/{id}/record
         < {}
-        > {'record': json}
+        > {'record': user-defined-record}
         > raises 404
     '''
     sync_name = request.matchdict['name']
-    section = request.matchdict['section']
-    record_id = request.matchdict['id']
+    section_name = request.matchdict['section']
+    record_id = record_database.url_string_to_record_id(request.matchdict['id'])
     config = record_database.load_config_from_name(sync_name, 'server')
-    record = record_database.get_record(config, section, record_id)
+    record = record_database.get_record(config, section_name, record_id)
     if record is None:
         raise NotFound
     return {'record': record}
@@ -107,7 +112,7 @@ def get_record_view(request):
 def put_record_view(request):
     '''
     PUT /{name}/{section}/{id}/record
-        < {'lock_key': uuid, 'record': json}
+        < {'lock_key': string, 'record': user-defined-record}
         > {}
         > raises 400: HTTPBadRequest
         > raises 423: DatabaseLocked
@@ -118,7 +123,7 @@ def put_record_view(request):
         raise DatabaseLocked("You do not own the lock on the database, or have the wrong key")
 
     section_name = request.matchdict['section']
-    record_id = request.matchdict['id']
+    record_id = record_database.url_string_to_record_id(request.matchdict['id'])
     record = request.json_body.get('record')
     if record is None:
         raise HTTPBadRequest("No record specified")
@@ -132,7 +137,7 @@ def put_record_view(request):
 def delete_record_view(request):
     '''
     DELETE /{name}/{section}/{id}/record
-        < {'lock_key': uuid}
+        < {'lock_key': string}
         > {}
         > raises 423: DatabaseLocked
     '''
@@ -141,7 +146,7 @@ def delete_record_view(request):
     if not Lock.test_lock(sync_name, key):
         raise DatabaseLocked("You do not own the lock on the database, or have the wrong key")
     section_name = request.matchdict['section']
-    record_id = request.matchdict['id']
+    record_id = record_database.url_string_to_record_id(request.matchdict['id'])
     config = record_database.load_config_from_name(sync_name, 'server')
     record_database.delete_record(config, section_name, record_id)
     return {}
@@ -152,14 +157,14 @@ def get_hash_view(request):
     '''
     GET /{name}/{section}/{id}/hash
         < {}
-        > {'hash': hash}
+        > {'hash': user-defined-hash}
         > raises 404
     '''
     sync_name = request.matchdict['name']
-    section = request.matchdict['section']
-    record_id = request.matchdict['id']
+    section_name = request.matchdict['section']
+    record_id = record_database.url_string_to_record_id(request.matchdict['id'])
     config = record_database.load_config_from_name(sync_name, 'server')
-    hash = record_database.get_record_hash(config, section, record_id)
+    hash = record_database.get_hash(config, section_name, record_id)
     if hash is None:
         raise NotFound
     return {'hash': hash}
@@ -169,7 +174,7 @@ def get_hash_view(request):
 def put_hash_view(request):
     '''
     PUT /{name}/{section}/{id}/hash
-        < {'lock_key': uuid, 'hash': uuid}
+        < {'lock_key': string, 'hash': user-defined-hash}
         > {}
         > raises 400: HTTPBadRequest
         > raises 423: DatabaseLocked
@@ -180,7 +185,7 @@ def put_hash_view(request):
         raise DatabaseLocked("You do not own the lock on the database, or have the wrong key")
 
     section_name = request.matchdict['section']
-    record_id = request.matchdict['id']
+    record_id = record_database.url_string_to_record_id(request.matchdict['id'])
     hash = request.json_body.get('hash')
     if hash is None:
         raise HTTPBadRequest("No hash specified")
@@ -194,7 +199,7 @@ def put_hash_view(request):
 def delete_hash_view(request):
     '''
     DELETE /{name}/{section}/{id}/hash
-        < {'lock_key': uuid}
+        < {'lock_key': string}
         > {}
         > raises 423: DatabaseLocked
     '''
@@ -203,7 +208,7 @@ def delete_hash_view(request):
     if not Lock.test_lock(sync_name, key):
         raise DatabaseLocked("You do not own the lock on the database, or have the wrong key")
     section_name = request.matchdict['section']
-    record_id = request.matchdict['id']
+    record_id = record_database.url_string_to_record_id(request.matchdict['id'])
     config = record_database.load_config_from_name(sync_name, 'server')
     record_database.delete_hash(config, section_name, record_id)
     return {}
@@ -214,15 +219,15 @@ def get_record_and_hash_view(request):
     '''
     GET /{name}/{section}/{id}/record-hash
         < {}
-        > {'record': json, 'hash': uuid}
+        > {'record': user-defined-record, 'hash': user-defined-hash}
         > raises 404
     '''
     sync_name = request.matchdict['name']
-    section = request.matchdict['section']
-    record_id = request.matchdict['id']
+    section_name = request.matchdict['section']
+    record_id = record_database.url_string_to_record_id(request.matchdict['id'])
     config = record_database.load_config_from_name(sync_name, 'server')
-    record = record_database.get_record(config, section, record_id)
-    hash = record_database.get_record_hash(config, section, record_id)
+    record = record_database.get_record(config, section_name, record_id)
+    hash = record_database.get_hash(config, section_name, record_id)
     if (record is None) or (hash is None):
         raise NotFound
     return {'record': record, 'hash': hash}
@@ -232,7 +237,7 @@ def get_record_and_hash_view(request):
 def put_record_and_hash_view(request):
     '''
     PUT /{name}/{section}/{id}/record-hash
-        < {'lock_key': uuid, 'record': json, 'hash': uuid}
+        < {'lock_key': string, 'record': user-defined-record, 'hash': user-defined-hash}
         > {}
         > raises 400: HTTPBadRequest
         > raises 423: DatabaseLocked
@@ -243,11 +248,13 @@ def put_record_and_hash_view(request):
         raise DatabaseLocked("You do not own the lock on the database, or have the wrong key")
 
     section_name = request.matchdict['section']
-    record_id = request.matchdict['id']
+    record_id = record_database.url_string_to_record_id(request.matchdict['id'])
     record = request.json_body.get('record')
-    hash = request.json_body.get('hash')
     if record is None:
         raise HTTPBadRequest("No record specified")
+    hash = request.json_body.get('hash')
+    if hash is None:
+        raise HTTPBadRequest("No hash specified")
 
     config = record_database.load_config_from_name(sync_name, 'server')
     record_database.insert_or_update_record(config, section_name, record_id, record)
@@ -259,7 +266,7 @@ def put_record_and_hash_view(request):
 def delete_record_and_hash_view(request):
     '''
     DELETE /{name}/{section}/{id}/record-hash
-        < {'lock_key': uuid}
+        < {'lock_key': string}
         > {}
         > raises 423: DatabaseLocked
     '''
@@ -268,7 +275,7 @@ def delete_record_and_hash_view(request):
     if not Lock.test_lock(sync_name, key):
         raise DatabaseLocked("You do not own the lock on the database, or have the wrong key")
     section_name = request.matchdict['section']
-    record_id = request.matchdict['id']
+    record_id = record_database.url_string_to_record_id(request.matchdict['id'])
     config = record_database.load_config_from_name(sync_name, 'server')
     record_database.delete_record(config, section_name, record_id)
     record_database.delete_hash(config, section_name, record_id)

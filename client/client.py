@@ -4,16 +4,16 @@ if __name__ == '__main__':
     from syncserver import record_database, utils
 
     # Load config and adjust for client side
-    configPath = sys.argv[1]
-    config = record_database.load_config_from_file(configPath, 'client', run_setup=True, sync_time=utils.now_utc())
-    sync_name = config['sync:main']['name']
+    config_path = sys.argv[1]
+    config = record_database.load_config_from_file(config_path, 'client', run_setup=True, sync_time=utils.now_utc())
+    sync_name = record_database.get_config_sync_name(config)
 
     # Connect to sync server
     connected = False
     attempts = 0
     while not connected and (attempts < 5):
         try:
-            sync_session = sync_api.SyncSession(sync_name, config['sync:main']['url'])
+            sync_session = sync_api.SyncSession(sync_name, record_database.get_config_sync_url(config))
             connected = True
         except sync_api.DatabaseLocked:
             import time
@@ -26,7 +26,7 @@ if __name__ == '__main__':
         sys.exit(-1)
 
     # Check database consistency using hash_hash
-    client_hash_hash = record_database.get_hash_hash(config=config)
+    client_hash_hash = record_database.get_hash_hash(config)
     server_hash_hash = sync_session.get_hash_hash()
     if client_hash_hash != server_hash_hash:
         print 'Hash hash is inconsistent between client and server. Refusing to synchronise.'
@@ -35,13 +35,14 @@ if __name__ == '__main__':
     # Compute client hash actions to get from old to new hashes
     client_hash_actions = record_database.get_hash_actions(config)
     # Find out how hashes have changed on the server
-    server_hash_actions = sync_session.get_hash_actions(config['sync:main']['sync_time'], dict([(key, config['_setup'][key]) for key in config['_client_vars']]))
+    server_hash_actions = sync_session.get_hash_actions(record_database.get_config_sync_time(config), record_database.get_config_client_vars(config))
 
     # Figure out how to sync
+    section_names = record_database.get_config_section_names(config)
     client_actions = {}
     server_actions = {}
-    for section_name in config['sync:main']['sections']:
-        merge_strategy = config['section:' + section_name]['merge']
+    for section_name in section_names:
+        merge_strategy = record_database.get_config_mergy_strategy_for_section(config, section_name)
         if merge_strategy == 'master':
             client_data_actions, server_data_actions = utils.sync_master_slave(client_hash_actions[section_name], server_hash_actions[section_name])
         elif merge_strategy == 'slave':
@@ -79,12 +80,9 @@ if __name__ == '__main__':
         else:
             assert action is None
 
-    import pdb
-    pdb.set_trace()
-
     # Apply hash-only actions for both client and server
     for source in [client_actions, client_actions]:
-        for section_name in config['sync:main']['sections']:
+        for section_name in section_names:
             for record_id, actions in source[section_name].iteritems():
                 my_action = actions['my-action']
                 if my_action[-5:] != '-hash':
@@ -103,7 +101,7 @@ if __name__ == '__main__':
     # TODO: Trigger client onchange events
 
     # Apply inserts locally
-    for section_name in config['sync:main']['sections']:
+    for section_name in section_names:
         for record_id, actions in client_actions[section_name].iteritems():
             if actions['my-action'] != 'insert':
                 continue
@@ -115,13 +113,12 @@ if __name__ == '__main__':
             try:
                 record_database.insert_record(config, section_name, record_id, record_data, volatile_hash=new_hash)
             except VolatileException:
-                section = config['section:' + section_name]
-                if section['merge'] in ['slave', 'child']:
+                if record_database.get_config_merge_strategy_for_section(config, section_name) in ['slave', 'child']:
                     record_database.update_record(config, section_name, record_id, record_data)
-            record_database.insert_record_hash(config, section_name, record_id, record_hash=new_hash)
+            record_database.insert_hash(config, section_name, record_id, new_hash)
 
     # Apply updates locally
-    for section_name in config['sync:main']['sections']:
+    for section_name in section_names:
         for record_id, actions in client_actions[section_name].iteritems():
             if actions['my-action'] != 'update':
                 continue
@@ -134,17 +131,16 @@ if __name__ == '__main__':
             try:
                 record_database.update_record(config, section_name, record_id, record_data, volatile_hashes=(old_hash, new_hash))
             except VolatileException, error:
-                section = config['section:' + section_name]
-                if section['merge'] in ['slave', 'child']:
+                if record_database.get_config_merge_strategy_for_section(config, section_name) in ['slave', 'child']:
                     if 'deleted' in error.message:
                         record_database.insert_record(config, section_name, record_id, record_data)
                     else:
                         assert 'updated' in error.message
                         record_database.update_record(config, section_name, record_id, record_data)
-            record_database.update_record_hash(config, section_name, record_id, record_hash=new_hash)
+            record_database.update_hash(config, section_name, record_id, new_hash)
         
     # Apply deletes locally
-    for section_name in config['sync:main']['sections']:
+    for section_name in section_names:
         for record_id, actions in client_actions[section_name].iteritems():
             if actions['my-action'] != 'delete':
                 continue
@@ -155,15 +151,14 @@ if __name__ == '__main__':
             try:
                 record_database.delete_record(config, section_name, record_id, volatile_hash=old_hash)
             except VolatileException:
-                section = config['section:' + section_name]
-                if section['merge'] in ['slave', 'child']:
-                    record_database.delete_record(config, section_name, record_id, record_data)
-            record_database.delete_record_hash(config, section_name, record_id)
+                if record_database.get_config_merge_strategy_for_section(config, section_name) in ['slave', 'child']:
+                    record_database.delete_record(config, section_name, record_id)
+            record_database.delete_hash(config, section_name, record_id)
         
     # Apply inserts and updates remotely. Still want to do inserts
     # before updates to maintain database integrity.
     for server_action in ['insert', 'update']:
-        for section_name in config['sync:main']['sections']:
+        for section_name in section_names:
             for record_id, actions in server_actions[section_name].iteritems():
                 if actions['my-action'] != server_action:
                     continue
@@ -175,7 +170,7 @@ if __name__ == '__main__':
                 local_hash_action(client_action, new_hash, section_name, record_id)
 
     # Apply deletes remotely.
-    for section_name in config['sync:main']['sections']:
+    for section_name in section_names:
         for record_id, actions in server_actions[section_name].iteritems():
             if actions['my-action'] != 'delete':
                 continue
@@ -185,7 +180,7 @@ if __name__ == '__main__':
             local_hash_action(client_action, None, section_name, record_id)
 
     # Sanity check our updated hashes
-    client_hash_hash = record_database.get_hash_hash(config=config)
+    client_hash_hash = record_database.get_hash_hash(config)
     server_hash_hash = sync_session.get_hash_hash()
     if client_hash_hash != server_hash_hash:
         print 'Hash hash is inconsistent between client and server after sync. Will not be able to sync in future.'
