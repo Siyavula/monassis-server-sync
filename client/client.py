@@ -49,7 +49,7 @@ if __name__ == '__main__':
             action_count = {'insert': 0, 'update': 0, 'delete': 0}
             for entry in actions[section_name]:
                 action_count[entry[1][0]] += 1
-            print '  ', section_name, action_count
+            print '   %-20s -- insert: %4i, update: %4i, delete: %4i'%(section_name, action_count['insert'], action_count['update'], action_count['delete'])
 
     print 'Compute data actions'
 
@@ -112,7 +112,8 @@ if __name__ == '__main__':
                 remote_hash_action(server_action, new_hash, section_name, record_id)
                 local_hash_action(client_action, new_hash, section_name, record_id)
                 counter += 1
-            print '  ', section_name, counter, 'applied'
+            if counter > 0:
+                print '   %-20s -- %4i applied'%(section_name, counter)
 
     # TODO: Trigger client onchange events
 
@@ -136,7 +137,8 @@ if __name__ == '__main__':
                     record_database.update_record(config, section_name, record_id, record_data)
             record_database.insert_hash(config, section_name, record_id, new_hash)
             counter += 1
-        print '  ', section_name, counter, 'applied'
+        if counter > 0:
+            print '   %-20s -- %4i applied'%(section_name, counter)
 
     print 'Apply local update'
 
@@ -163,7 +165,8 @@ if __name__ == '__main__':
                         record_database.update_record(config, section_name, record_id, record_data)
             record_database.update_hash(config, section_name, record_id, new_hash)
             counter += 1
-        print '  ', section_name, counter, 'applied'
+        if counter > 0:
+            print '   %-20s -- %4i applied'%(section_name, counter)
         
     print 'Apply local delete'
 
@@ -184,7 +187,8 @@ if __name__ == '__main__':
                     record_database.delete_record(config, section_name, record_id)
             record_database.delete_hash(config, section_name, record_id)
             counter += 1
-        print '  ', section_name, counter, 'applied'
+        if counter > 0:
+            print '   %-20s -- %4i applied'%(section_name, counter)
         
     print 'Apply remote insert'
 
@@ -216,7 +220,8 @@ if __name__ == '__main__':
                         client_action = 'update-hash'
                     local_hash_action(client_action, volatile_hash, section_name, record_id)
             counter += 1
-        print '  ', section_name, counter, 'applied'
+        if counter > 0:
+            print '   %-20s -- %4i applied'%(section_name, counter)
 
     print 'Apply remote update'
 
@@ -248,7 +253,8 @@ if __name__ == '__main__':
                         client_action = 'update-hash'
                     local_hash_action(client_action, volatile_hash, section_name, record_id)
             counter += 1
-        print '  ', section_name, counter, 'applied'
+        if counter > 0:
+            print '   %-20s -- %4i applied'%(section_name, counter)
 
     print 'Apply remote delete'
 
@@ -263,7 +269,8 @@ if __name__ == '__main__':
             sync_session.delete_record_and_hash(section_name, packed_record_id)
             local_hash_action(client_action, None, section_name, record_id)
             counter += 1
-        print '  ', section_name, counter, 'applied'
+        if counter > 0:
+            print '   %-20s -- %4i applied'%(section_name, counter)
 
     # Sanity check our updated hashes
     client_hash_hash = record_database.get_hash_hash(config)
