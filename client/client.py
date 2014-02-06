@@ -51,7 +51,13 @@ if __name__ == '__main__':
             action_count = {'insert': 0, 'update': 0, 'delete': 0}
             for entry in actions[section_name]:
                 action_count[entry[1][0]] += 1
-            print '   %-20s -- insert: %4i, update: %4i, delete: %4i'%(section_name, action_count['insert'], action_count['update'], action_count['delete'])
+            print '   %-20s --'%(section_name),
+            for action in ['insert', 'update', 'delete']:
+                if action_count[action] == 0:
+                    print (' '*(len(action)+7)),
+                else:
+                    print ('%s: %4i,'%(action, action_count[action])),
+            print
 
     print 'Compute data actions'
 
@@ -69,13 +75,16 @@ if __name__ == '__main__':
         client_actions[section_name] = act['client']
         server_actions[section_name] = act['server']
 
-    for role, actions in [('client', client_actions), ('server', server_actions)]:
-        print role
-        for section_name in section_names:
+    for section_name in section_names:
+        print '   %-20s --'%(section_name),
+        for role, actions in [('client', client_actions), ('server', server_actions)]:
             action_count = {'insert': 0, 'update': 0, 'delete': 0, 'insert-hash': 0, 'update-hash': 0, 'delete-hash': 0}
             for record_id, action in actions[section_name]:
                 action_count[action['our-action']] += 1
-            print '   %-20s -- insert: %4i, update: %4i, delete: %4i, insert-hash: %4i, update-hash: %4i, delete-hash: %4i'%(section_name, action_count['insert'], action_count['update'], action_count['delete'], action_count['insert-hash'], action_count['update-hash'], action_count['delete-hash'])
+            for action in ['insert', 'update', 'delete', 'insert-hash', 'update-hash', 'delete-hash']:
+                if action_count[action] != 0:
+                    print ('%s.%s%s: %4i,'%(role[0], action[0], 'h' if action[-5:] == '-hash' else 't', action_count[action])),
+        print
 
     def remote_hash_action(action, hash, section_name, record_id):
         # Will look up outside of function scope: record_database, sync_session
