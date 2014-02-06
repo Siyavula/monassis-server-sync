@@ -69,6 +69,14 @@ if __name__ == '__main__':
         client_actions[section_name] = act['client']
         server_actions[section_name] = act['server']
 
+    for role, actions in [('client', client_actions), ('server', server_actions)]:
+        print role
+        for section_name in section_names:
+            action_count = {'insert': 0, 'update': 0, 'delete': 0, 'insert-hash': 0, 'update-hash': 0, 'delete-hash': 0}
+            for record_id, action in actions[section_name]:
+                action_count[action['our-action']] += 1
+            print '   %-20s -- insert: %4i, update: %4i, delete: %4i, insert-hash: %4i, update-hash: %4i, delete-hash: %4i'%(section_name, action_count['insert'], action_count['update'], action_count['delete'], action_count['insert-hash'], action_count['update-hash'], action_count['delete-hash'])
+
     def remote_hash_action(action, hash, section_name, record_id):
         # Will look up outside of function scope: record_database, sync_session
         if action is not None:
@@ -92,6 +100,9 @@ if __name__ == '__main__':
             record_database.delete_hash(config, section_name, record_id)
         else:
             assert action is None
+
+    import pdb
+    pdb.set_trace()
 
     print 'Apply *-hash'
 
