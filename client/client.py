@@ -137,6 +137,11 @@ if __name__ == '__main__':
             if counter > 0:
                 print '   %-20s -- %4i applied'%(section_name, counter)
 
+    # Sanity check our updated hashes
+    if record_database.get_hash_hash(config) != sync_session.get_hash_hash():
+        print 'Hash hash is inconsistent'
+        sys.exit()
+
     # TODO: Trigger client onchange events
 
     print 'Apply local insert'
@@ -162,6 +167,11 @@ if __name__ == '__main__':
         if counter > 0:
             print '   %-20s -- %4i applied'%(section_name, counter)
 
+    # Sanity check our updated hashes
+    if record_database.get_hash_hash(config) != sync_session.get_hash_hash():
+        print 'Hash hash is inconsistent'
+        sys.exit()
+
     print 'Apply local update'
 
     # Apply updates locally
@@ -185,15 +195,20 @@ if __name__ == '__main__':
                     else:
                         assert 'updated' in error.message
                         record_database.update_record(config, section_name, record_id, record_data)
-            record_database.update_hash(config, section_name, record_id, new_hash)
+            record_database.insert_or_update_hash(config, section_name, record_id, new_hash)
             counter += 1
         if counter > 0:
             print '   %-20s -- %4i applied'%(section_name, counter)
         
+    # Sanity check our updated hashes
+    if record_database.get_hash_hash(config) != sync_session.get_hash_hash():
+        print 'Hash hash is inconsistent'
+        sys.exit()
+
     print 'Apply local delete'
 
     # Apply deletes locally
-    for section_name in section_names:
+    for section_name in reversed(section_names):
         counter = 0
         for record_id, actions in client_actions[section_name]:
             if actions['our-action'] != 'delete':
@@ -212,6 +227,11 @@ if __name__ == '__main__':
         if counter > 0:
             print '   %-20s -- %4i applied'%(section_name, counter)
         
+    # Sanity check our updated hashes
+    if record_database.get_hash_hash(config) != sync_session.get_hash_hash():
+        print 'Hash hash is inconsistent'
+        sys.exit()
+
     print 'Apply remote insert'
 
     # Apply inserts remotely
@@ -244,6 +264,11 @@ if __name__ == '__main__':
             counter += 1
         if counter > 0:
             print '   %-20s -- %4i applied'%(section_name, counter)
+
+    # Sanity check our updated hashes
+    if record_database.get_hash_hash(config) != sync_session.get_hash_hash():
+        print 'Hash hash is inconsistent'
+        sys.exit()
 
     print 'Apply remote update'
 
@@ -278,10 +303,15 @@ if __name__ == '__main__':
         if counter > 0:
             print '   %-20s -- %4i applied'%(section_name, counter)
 
+    # Sanity check our updated hashes
+    if record_database.get_hash_hash(config) != sync_session.get_hash_hash():
+        print 'Hash hash is inconsistent'
+        sys.exit()
+
     print 'Apply remote delete'
 
     # Apply deletes remotely.
-    for section_name in section_names:
+    for section_name in reversed(section_names):
         counter = 0
         for record_id, actions in server_actions[section_name]:
             if actions['our-action'] != 'delete':

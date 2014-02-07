@@ -369,12 +369,6 @@ def __unpack_record_id_values(values):
     return values.rstrip(',').split(',')
 
 
-def __pack_record_id_values_sql(values):
-    import sqlalchemy
-    from uuid import UUID
-    return sqlalchemy.func.concat(*([value + "," for value in values]))
-
-
 def __pack_record_id_columns(columns):
     import sqlalchemy
     return sqlalchemy.func.concat(*([column + "," for column in columns]))
@@ -667,7 +661,7 @@ def get_hash(config, section_name, record_id):
     import sqlalchemy
     section = config['section:' + section_name]
     hash_table = section['_hash_table']
-    packed_record_id_values = __pack_record_id_values_sql(record_id)
+    packed_record_id_values = __pack_record_id_values(record_id)
     select = sqlalchemy.sql.select([hash_table.c.record_hash], (hash_table.c.sync_name == config['sync:main']['name']) & (hash_table.c.section_name == section_name) & (hash_table.c.record_id == packed_record_id_values))
     result = section['_database'].execute(select)
     row = result.fetchone()
@@ -683,7 +677,7 @@ def insert_hash(config, section_name, record_id, record_hash):
     Insert into record hashes table.
     '''
     section = config['section:' + section_name]
-    packed_record_id = __pack_record_id_values_sql(record_id)
+    packed_record_id = __pack_record_id_values(record_id)
     if record_hash is None:
         record_hash = __pack_record_hash_values_sql(record_data)
     section['_hash_table']\
@@ -703,7 +697,7 @@ def update_hash(config, section_name, record_id, record_hash):
     '''
     section = config['section:' + section_name]
     hash_table = section['_hash_table']
-    packed_record_id_values = __pack_record_id_values_sql(record_id)
+    packed_record_id_values = __pack_record_id_values(record_id)
     if record_hash is None:
         record_hash = __pack_record_hash_values_sql(record_data)
     affected_rows = hash_table.update()\
@@ -730,7 +724,7 @@ def delete_hash(config, section_name, record_id):
     '''
     section = config['section:' + section_name]
     hash_table = section['_hash_table']
-    packed_record_id_values = __pack_record_id_values_sql(record_id)
+    packed_record_id_values = __pack_record_id_values(record_id)
     affected_rows = hash_table.delete()\
         .where(
             (hash_table.c.sync_name == config['sync:main']['name']) &\
