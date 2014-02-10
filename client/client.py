@@ -214,7 +214,6 @@ if __name__ == '__main__':
             if actions['our-action'] != 'delete':
                 continue
             old_hash = actions['old-hash']
-            packed_record_id = record_database.record_id_to_url_string(record_id)
             server_action = actions.get('their-action')
             remote_hash_action(server_action, None, section_name, record_id)
             try:
@@ -249,18 +248,15 @@ if __name__ == '__main__':
                 # remotely. Do nothing remotely since it doesn't exist
                 # there. Delete local hash if necessary.
                 if client_action != 'insert-hash':
-                    local_hash_action('delete-hash', None, section_name, record_id)
+                    record_database.delete_hash(config, section_name, record_id)
             else:
                 # If record got modified locally before we could
                 # insert it remotely, just sent the new record and
                 # update the local hash from the new record.
                 sync_session.put_record_and_hash(section_name, packed_record_id, record_data, volatile_hash)
-                if new_hash == volatile_hash:
-                    local_hash_action(client_action, new_hash, section_name, record_id)
-                else:
-                    if client_action is None:
-                        client_action = 'update-hash'
-                    local_hash_action(client_action, volatile_hash, section_name, record_id)
+                if (new_hash != volatile_hash) and (client_action is None):
+                    client_action = 'update-hash'
+                local_hash_action(client_action, volatile_hash, section_name, record_id)
             counter += 1
         if counter > 0:
             print '   %-20s -- %4i applied'%(section_name, counter)
@@ -287,18 +283,15 @@ if __name__ == '__main__':
                 # remotely. Delete it remotely and from the local hash
                 # table.
                 sync_session.delete_record_and_hash(section_name, packed_record_id)
-                local_hash_action('delete-hash', None, section_name, record_id)
+                record_database.delete_hash(config, section_name, record_id)
             else:
                 # If record got modified locally before we could
                 # update it remotely, just sent the new record and
                 # update the local hash from the new record.
                 sync_session.put_record_and_hash(section_name, packed_record_id, record_data, volatile_hash)
-                if new_hash == volatile_hash:
-                    local_hash_action(client_action, new_hash, section_name, record_id)
-                else:
-                    if client_action is None:
-                        client_action = 'update-hash'
-                    local_hash_action(client_action, volatile_hash, section_name, record_id)
+                if (new_hash != volatile_hash) and (client_action is None):
+                    client_action = 'update-hash'
+                local_hash_action(client_action, volatile_hash, section_name, record_id)
             counter += 1
         if counter > 0:
             print '   %-20s -- %4i applied'%(section_name, counter)
