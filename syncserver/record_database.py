@@ -366,7 +366,7 @@ def __pack_record_id_values(values):
 
 
 def __unpack_record_id_values(values):
-    return values.rstrip(',').split(',')
+    return tuple(values.rstrip(',').split(','))
 
 
 def __pack_record_id_columns(columns):
