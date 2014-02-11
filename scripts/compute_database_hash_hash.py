@@ -13,6 +13,7 @@ if __name__ == '__main__':
         for table_name in sorted(dbmodel.tables.keys()):
             if table_name == 'record_hashes':
                 continue
+            table_hash = md5()
             table = dbmodel.tables[table_name]
 
             select = sqlalchemy.sql.select([table]).limit(1)
@@ -24,7 +25,8 @@ if __name__ == '__main__':
             select = sqlalchemy.sql.select(columns).order_by(*columns)
             result = database.execute(select)
             for row in result:
-                hash_hash.update(repr(tuple(row)))
+                table_hash.update(repr(tuple(row)))
             result.close()
-            print table_name, hash_hash.hexdigest()
+            print table_name, table_hash.hexdigest()
+            hash_hash.update(table_hash.hexdigest())
     print hash_hash.hexdigest()
