@@ -21,7 +21,7 @@ if __name__ == '__main__':
             columns.sort()
             columns = [table.c[column] for column in columns]
 
-            select = sqlalchemy.sql.select([table]).order_by(*columns)
+            select = sqlalchemy.sql.select(columns).order_by(*columns)
             result = database.execute(select)
             for row in result:
                 hash_hash.update(repr(tuple(row)))
