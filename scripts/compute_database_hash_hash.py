@@ -20,7 +20,7 @@ if __name__ == '__main__':
             result = database.execute(select)
             columns = result.fetchone().keys()
             columns.sort()
-            columns = [table.c[column] for column in columns]
+            columns = [sqlalchemy.func.md5(sqlalchemy.sql.cast(table.c[columns[i]], sqlalchemy.Text())).label('c' + str(i)) for i in range(len(columns))]
 
             select = sqlalchemy.sql.select(columns).order_by(*columns)
             result = database.execute(select)
