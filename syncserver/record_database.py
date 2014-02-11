@@ -479,6 +479,8 @@ def get_hash_actions(config, sections=None):
         hash_actions[section_name] += [(tuple(row)[:-2], ('update',) + tuple(row)[-2:]) for row in result]
         result.close()
 
+        assert len(set([x[0] for x in hash_actions[section_name]])) == len(hash_actions[section_name]), "Duplicate record ids found in hash actions for section %s"%(repr(section_name))
+
     return hash_actions
 
 
