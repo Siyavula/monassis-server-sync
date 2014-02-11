@@ -27,7 +27,7 @@ if __name__ == '__main__':
             count = 0
             for row in result:
                 table_hash.update(repr(tuple(row)))
-                if (count % 100) == 0 and (table_name == 'templates'):
+                if (count < 100) and (count % 5) == 0 and (table_name == 'templates'):
                     print table_hash.hexdigest()
                 count += 1
             result.close()
