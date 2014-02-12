@@ -116,6 +116,7 @@ if __name__ == '__main__':
     print 'Apply *-hash'
 
     # Apply hash-only actions for both client and server
+    totalApplied = 0
     for source in [client_actions, server_actions]:
         for section_name in section_names:
             counter = 0
@@ -135,18 +136,21 @@ if __name__ == '__main__':
                 local_hash_action(client_action, new_hash, section_name, record_id)
                 counter += 1
             if counter > 0:
+                totalApplied += counter
                 print '   %-20s -- %4i applied'%(section_name, counter)
 
-    # Sanity check our updated hashes
-    if record_database.get_hash_hash(config) != sync_session.get_hash_hash():
-        print 'Hash hash is inconsistent'
-        sys.exit()
+    if totalApplied > 0:
+        # Sanity check our updated hashes
+        if record_database.get_hash_hash(config) != sync_session.get_hash_hash():
+            print 'Hash hash is inconsistent'
+            sys.exit()
 
     # TODO: Trigger client onchange events
 
     print 'Apply local insert'
 
     # Apply inserts locally
+    totalApplied = 0
     for section_name in section_names:
         counter = 0
         for record_id, actions in client_actions[section_name]:
@@ -165,16 +169,19 @@ if __name__ == '__main__':
             record_database.insert_hash(config, section_name, record_id, new_hash)
             counter += 1
         if counter > 0:
+            totalApplied += counter
             print '   %-20s -- %4i applied'%(section_name, counter)
 
-    # Sanity check our updated hashes
-    if record_database.get_hash_hash(config) != sync_session.get_hash_hash():
-        print 'Hash hash is inconsistent'
-        sys.exit()
+    if totalApplied > 0:
+        # Sanity check our updated hashes
+        if record_database.get_hash_hash(config) != sync_session.get_hash_hash():
+            print 'Hash hash is inconsistent'
+            sys.exit()
 
     print 'Apply local update'
 
     # Apply updates locally
+    totalApplied = 0
     for section_name in section_names:
         counter = 0
         for record_id, actions in client_actions[section_name]:
@@ -198,16 +205,19 @@ if __name__ == '__main__':
             record_database.insert_or_update_hash(config, section_name, record_id, new_hash)
             counter += 1
         if counter > 0:
+            totalApplied += counter
             print '   %-20s -- %4i applied'%(section_name, counter)
         
-    # Sanity check our updated hashes
-    if record_database.get_hash_hash(config) != sync_session.get_hash_hash():
-        print 'Hash hash is inconsistent'
-        sys.exit()
+    if totalApplied > 0:
+        # Sanity check our updated hashes
+        if record_database.get_hash_hash(config) != sync_session.get_hash_hash():
+            print 'Hash hash is inconsistent'
+            sys.exit()
 
     print 'Apply local delete'
 
     # Apply deletes locally
+    totalApplied = 0
     for section_name in reversed(section_names):
         counter = 0
         for record_id, actions in client_actions[section_name]:
@@ -224,16 +234,19 @@ if __name__ == '__main__':
             record_database.delete_hash(config, section_name, record_id)
             counter += 1
         if counter > 0:
+            totalApplied += counter
             print '   %-20s -- %4i applied'%(section_name, counter)
         
-    # Sanity check our updated hashes
-    if record_database.get_hash_hash(config) != sync_session.get_hash_hash():
-        print 'Hash hash is inconsistent'
-        sys.exit()
+    if totalApplied > 0:
+        # Sanity check our updated hashes
+        if record_database.get_hash_hash(config) != sync_session.get_hash_hash():
+            print 'Hash hash is inconsistent'
+            sys.exit()
 
     print 'Apply remote insert'
 
     # Apply inserts remotely
+    totalApplied = 0
     for section_name in section_names:
         counter = 0
         for record_id, actions in server_actions[section_name]:
@@ -259,16 +272,19 @@ if __name__ == '__main__':
                 local_hash_action(client_action, volatile_hash, section_name, record_id)
             counter += 1
         if counter > 0:
+            totalApplied += counter
             print '   %-20s -- %4i applied'%(section_name, counter)
 
-    # Sanity check our updated hashes
-    if record_database.get_hash_hash(config) != sync_session.get_hash_hash():
-        print 'Hash hash is inconsistent'
-        sys.exit()
+    if totalApplied > 0:
+        # Sanity check our updated hashes
+        if record_database.get_hash_hash(config) != sync_session.get_hash_hash():
+            print 'Hash hash is inconsistent'
+            sys.exit()
 
     print 'Apply remote update'
 
     # Apply updates remotely
+    totalApplied = 0
     for section_name in section_names:
         counter = 0
         for record_id, actions in server_actions[section_name]:
@@ -294,16 +310,19 @@ if __name__ == '__main__':
                 local_hash_action(client_action, volatile_hash, section_name, record_id)
             counter += 1
         if counter > 0:
+            totalApplied += counter
             print '   %-20s -- %4i applied'%(section_name, counter)
 
-    # Sanity check our updated hashes
-    if record_database.get_hash_hash(config) != sync_session.get_hash_hash():
-        print 'Hash hash is inconsistent'
-        sys.exit()
+    if totalApplied > 0:
+        # Sanity check our updated hashes
+        if record_database.get_hash_hash(config) != sync_session.get_hash_hash():
+            print 'Hash hash is inconsistent'
+            sys.exit()
 
     print 'Apply remote delete'
 
     # Apply deletes remotely.
+    totalApplied = 0
     for section_name in reversed(section_names):
         counter = 0
         for record_id, actions in server_actions[section_name]:
@@ -315,6 +334,7 @@ if __name__ == '__main__':
             local_hash_action(client_action, None, section_name, record_id)
             counter += 1
         if counter > 0:
+            totalApplied += counter
             print '   %-20s -- %4i applied'%(section_name, counter)
 
     # Sanity check our updated hashes
