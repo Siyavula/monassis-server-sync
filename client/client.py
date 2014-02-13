@@ -21,7 +21,7 @@ if __name__ == '__main__':
     # Connect to sync server
     connected = False
     attempts = 0
-    while not connected and (attempts < 5):
+    while not connected and (attempts < 4):
         try:
             sync_session = sync_api.SyncSession(sync_name, record_database.get_config_sync_url(config))
             connected = True
