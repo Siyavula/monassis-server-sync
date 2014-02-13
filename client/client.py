@@ -4,8 +4,6 @@ if __name__ == '__main__':
     from syncserver import record_database, utils
     from syncserver.errors import VolatileConflict
 
-    print 'Init'
-
     # Load config and adjust for client side
     config_path = sys.argv[1]
     sync_time = utils.now_utc()
@@ -109,9 +107,6 @@ if __name__ == '__main__':
             record_database.delete_hash(config, section_name, record_id)
         else:
             assert action is None
-
-    import pdb
-    pdb.set_trace()
 
     print 'Apply *-hash'
 
