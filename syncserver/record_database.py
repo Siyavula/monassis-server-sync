@@ -479,7 +479,21 @@ def get_hash_actions(config, sections=None):
         hash_actions[section_name] += [(tuple(row)[:-2], ('update',) + tuple(row)[-2:]) for row in result]
         result.close()
 
-        assert len(set([x[0] for x in hash_actions[section_name]])) == len(hash_actions[section_name]), "Duplicate record ids found in hash actions for section %s"%(repr(section_name))
+        if len(set([x[0] for x in hash_actions[section_name]])) != len(hash_actions[section_name]):
+            message = "Duplicate record ids found in hash actions for section %s"%(repr(section_name))
+            h = hash_actions[section_name]
+            h.sort()
+            i = 1
+            while i < len(h):
+                if h[i][0] == h[i-1][0]:
+                    actions = [h[i-1][1]]
+                    while (i < len(h)) and (h[i][0] == h[i-1][0]):
+                        actions.append(h[i][1])
+                        i += 1
+                    message += ' -- ' + repr(h[i][0]) + ': ' + repr(actions)
+                else:
+                    i += 1
+            raise ValueError, message
 
     return hash_actions
 
