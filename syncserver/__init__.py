@@ -10,8 +10,7 @@ def main(global_config, **settings):
 
     # This should be done before any pyramid imports if possible,
     # certainly before make_wsgi_app()
-    setup_newrelic(settings.get('newrelic.environment'))
-
+    setup_newrelic(settings)
     setup_database(settings)
 
     from pyramid.config import Configurator
@@ -66,9 +65,11 @@ def setup_logging():
             setattr(handler.formatter, '_fmt', '%(asctime)s %(levelname)-5.5s [%(requestid)s] [%(process)d] [%(name)s][%(threadName)s] %(message)s')
 
 
-def setup_newrelic(env=None):
+def setup_newrelic(settings):
     """ If +env+ is not None, setup newrelic and tell
     it to use that environment config. """
-    if env:
+    env = settings.get('newrelic.environment')
+    iniFile = settings.get('newrelic.ini')
+    if env and iniFile:
         import newrelic.agent
-        newrelic.agent.initialize('newrelic.ini', env)
+        newrelic.agent.initialize(iniFile, env)
