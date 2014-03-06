@@ -36,6 +36,7 @@ def setup_routes(config):
     config.add_route('get_record_and_hash', '/{name}/{section}/{id}/record-hash', request_method='GET')
     config.add_route('put_record_and_hash', '/{name}/{section}/{id}/record-hash', request_method='PUT')
     config.add_route('delete_record_and_hash', '/{name}/{section}/{id}/record-hash', request_method='DELETE')
+    config.add_route('server_status', '/server_status', request_method='GET')
 
 
 def setup_database(settings):

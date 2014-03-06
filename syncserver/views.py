@@ -281,3 +281,8 @@ def delete_record_and_hash_view(request):
     record_database.delete_record(config, section_name, record_id)
     record_database.delete_hash(config, section_name, record_id)
     return {}
+
+
+@view_config(route_name='server_status', renderer='json')
+def server_status_view(request):
+    return {'result': 'OK'}
