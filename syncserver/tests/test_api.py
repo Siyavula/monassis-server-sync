@@ -31,24 +31,12 @@ class APITests(unittest.TestCase):
         self.app.get('/read/badness', status=404)
 
 
-    def test_view_create_entry(self):
-        entry = self.create()
-        self.assertIsNotNone(entry.get('id'))
-
-        res = self.app.get('/read/%s' % entry['id'])
-        self.assertEquals(res.content_type, 'application/json')
-
-        # these two should now match
-        entry2 = res.json['entry']
-        self.assertDictEqual(entry, entry2)
-
-
     def test_request_ids_on_error(self):
         res = self.app.get('/read/notthere', status=404)
         self.assertIsNotNone(res.headers.get('X-Request-Id'))
 
 
     def test_request_ids_on_success(self):
-        res = self.app.get('/list')
+        res = self.app.get('/server_status')
         self.assertIsNotNone(res.headers.get('X-Request-Id'))
         self.assertEquals(res.headers['X-Request-Id'], res.json['request_id'])

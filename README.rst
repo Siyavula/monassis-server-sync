@@ -12,7 +12,13 @@ Development
  * ``initialize_db development.ini``
  * ``pserve development.ini --reload``
 
-To run functional and unittests, run: ``nosetests``
+To run functional and unittests, first install:
+
+  ``env/bin/pip install nose webtest``
+
+then run:
+
+  ``env/bin/nosetests``
 
 Production
 ----------
