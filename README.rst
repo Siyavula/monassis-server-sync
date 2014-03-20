@@ -16,6 +16,10 @@ To run functional and unittests, first install:
 
   ``env/bin/pip install nose webtest``
 
+the switch to the tests branch:
+
+  ``git checkout tests``
+
 then run:
 
   ``env/bin/nosetests``
