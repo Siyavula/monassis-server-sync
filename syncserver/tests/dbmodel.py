@@ -12,7 +12,6 @@ except ConfigParser.Error:
     db = None
 else:
     dbmsName = dbUri[:dbUri.find(':')]
-    print dbUri
     db = sqlalchemy.create_engine(dbUri)
     metadata = sqlalchemy.MetaData(db)
     tables = {}
@@ -66,4 +65,5 @@ def load_db():
         for key in ['records', 'record_hashes']:
             tables[key] = sqlalchemy.Table(key, metadata, autoload=True)
     except sqlalchemy.exc.NoSuchTableError:
+        metadata.clear()
         make_empty_db()

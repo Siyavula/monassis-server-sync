@@ -45,18 +45,19 @@ class APITests(unittest.TestCase):
     def test_lock_unlock_behavior(self):
         # Lock, then check that you can read a locked call, then
         # unlock, then check that reading the locked call fails
-        lockKey = self.obtain_lock()
-        res = self.app.put_json('/nosetests/unlock', {'lock_key': lockKey})
+        lock_key = self.obtain_lock()
+        res = self.app.put_json('/nosetests/unlock', {'lock_key': lock_key})
         res = self.app.put_json('/nosetests/unlock', {'lock_key': 'not-a-valid-key'}, status=423)
 
 
     def test_put_and_get_record(self):
-        recordId = ('column', 'id',)
-        recordData = {'some': 'data'}
+        record_id = [0]
+        data_columns = ['column1', 'column2', 'column3']
+        data_values = ['abc', 'def', 'ghi']
 
-        lockKey = self.obtain_lock()
-        url = '/nosetests/records/' + record_database.record_id_to_url_string(recordId) + '/record'
-        self.app.put_json(url, {'lock_key': lockKey, 'record': recordData})
+        lock_key = self.obtain_lock()
+        url = '/nosetests/records/' + record_database.record_id_to_url_string(record_id) + '/record'
+        self.app.put_json(url, {'lock_key': lock_key, 'record': data_values})
         res = self.app.get(url)
         self.assertIsNotNone(res.json.get('record'))
-        self.assertEquals(res.json['record'], record)
+        self.assertEquals(res.json['record'], data_values)

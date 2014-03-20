@@ -136,7 +136,7 @@ Required methods:
 __DATABASE_REGISTRY = {
     'testdb': {
         'module': 'syncserver.tests.dbmodel',
-        'version': '1.0',
+        'version': 'DB_VERSION',
         'database': 'db',
         'tables': 'tables',
         'hash_table': 'record_hashes',

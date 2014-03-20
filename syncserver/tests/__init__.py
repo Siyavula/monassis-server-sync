@@ -16,5 +16,11 @@ def init_testing_app():
 
 def init_testing_db():
     # NOTE: init_testing_app must have been called first
+
+    # Load records database
+    from syncserver.tests import dbmodel
+    dbmodel.load_db()
+
+    # Load sync server database
     Base.metadata.create_all()
     return DBSession()
