@@ -2,24 +2,31 @@ import sqlalchemy
 
 DB_VERSION = '1.0'
 
-# Determine which database to use from configuration file
-import ConfigParser
-parser = ConfigParser.SafeConfigParser()
-parser.read('database.cfg')
-try:
-    dbUri = parser.get('databases', 'nosetests')
-except ConfigParser.Error:
-    db = None
-else:
-    dbmsName = dbUri[:dbUri.find(':')]
-    db = sqlalchemy.create_engine(dbUri)
+def load_from_uri(uri):
+    global db, metadata, tables
+    db = sqlalchemy.create_engine(uri)
     metadata = sqlalchemy.MetaData(db)
     tables = {}
 
 
+# Determine which database to use from configuration file
+import ConfigParser
+parser = ConfigParser.SafeConfigParser()
+parser.read('database.cfg')
+db = None
+metadata = None
+tables = None
+try:
+    dbUri = parser.get('databases', 'nosetests')
+except ConfigParser.Error:
+    pass
+else:
+    load_from_uri(dbUri)
+
+
 def create(**columns):
     global tables
-    return tables['sessions'].insert().values(**columns).execute().inserted_primary_key[0]
+    return tables['records'].insert().values(**columns).execute().inserted_primary_key[0]
         
 
 def read(id):
