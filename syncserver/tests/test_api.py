@@ -50,14 +50,32 @@ class APITests(unittest.TestCase):
         res = self.app.put_json('/nosetests/unlock', {'lock_key': 'not-a-valid-key'}, status=423)
 
 
-    def test_put_and_get_record(self):
-        record_id = [0]
-        data_columns = ['column1', 'column2', 'column3']
-        data_values = ['abc', 'def', 'ghi']
+    def test_create_read_update_delete(self):
+        records = [
+            ([0], ['abc', 'def', 'ghi']),
+            ([1], ['jkl', 'mno', 'pqr']),
+            ([2], ['stu', 'vwx', 'yza']),
+            ([0], ['bcd', 'efg', 'hij']),
+        ]
 
         lock_key = self.obtain_lock()
-        url = '/nosetests/records/' + record_database.record_id_to_url_string(record_id) + '/record'
-        self.app.put_json(url, {'lock_key': lock_key, 'record': data_values})
-        res = self.app.get(url)
-        self.assertIsNotNone(res.json.get('record'))
-        self.assertEquals(res.json['record'], data_values)
+
+        # Create, update, read
+        for record_id, data_values in records:
+            url = '/nosetests/records/' + record_database.record_id_to_url_string(record_id) + '/record'
+            self.app.put_json(url, {'lock_key': lock_key, 'record': data_values})
+            res = self.app.get(url)
+            self.assertIsNotNone(res.json.get('record'))
+            self.assertEquals(res.json['record'], data_values)
+
+        # Delete
+        deleted_ids = []
+        for record_id, data_values in records:
+            if record_id in deleted_ids:
+                continue
+            url = '/nosetests/records/' + record_database.record_id_to_url_string(record_id) + '/record'
+            res = self.app.get(url)                           # record still there
+            self.app.delete_json(url, {'lock_key': lock_key}) # delete
+            self.app.delete_json(url, {'lock_key': lock_key}) # idempotent
+            res = self.app.get(url, status=404)               # record gone
+            deleted_ids.append(record_id)
