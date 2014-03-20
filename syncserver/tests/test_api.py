@@ -8,10 +8,7 @@ from syncserver.tests import init_testing_app, init_testing_db
 from syncserver.models.support import DBSession
 from syncserver import record_database
 
-class APITests(unittest.TestCase):
-    USER = 'rest'
-    PAYLOAD = {'a': 'b', 'c': ['d', 'e']}
-
+class TestApi(unittest.TestCase):
     def setUp(self):
         self.app = init_testing_app()
         self.session = init_testing_db()
