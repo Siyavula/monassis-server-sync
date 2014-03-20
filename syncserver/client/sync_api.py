@@ -52,7 +52,7 @@ class SyncSession:
             except Exception:
                 message = None
             raise UnhandledResponse(response.status_code, message)
-            
+
 
     def get_hash_hash(self):
         response = requests.get(
@@ -61,7 +61,7 @@ class SyncSession:
         self.__handle_unexpected_status_codes(response)
         return json.loads(response.content)['hash-hash']
 
-        
+
     def get_hash_actions(self, sync_time, client_vars):
         response = requests.get(
             urlparse.urljoin(self.host_uri, '/%s/hash-actions'%(self.sync_name)),
