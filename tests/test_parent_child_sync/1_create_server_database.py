@@ -9,9 +9,10 @@
         {'id': 10, 'column1': 'jj', 'column2': 'jj', 'column3': 'jj'},
         {'id': 12, 'column1': 'l', 'column2': 'l', 'column3': 'l'},
         {'id': 13, 'column1': 'mm', 'column2': 'mm', 'column3': 'mm'},
+        {'id': 14, 'column1': 'nn', 'column2': 'nn', 'column3': 'nn'},
     ],
     'record_hashes': [
-        #{'sync_name': '__test__', 'section_name': 'records', 'record_id': '1,', 'record_hash': 'f05c4e469d21aac365fecd512f7a7dde'}, # ii
+        #{'sync_name': '__test__', 'section_name': 'records', 'record_id': '1,', 'record_hash': 'f05c4e469d21aac365fecd512f7a7dde'}, # ii0
         #{'sync_name': '__test__', 'section_name': 'records', 'record_id': '2,', 'record_hash': '5723533d6287c82d5aea7a905f424a2b'}, # i-
         #{'sync_name': '__test__', 'section_name': 'records', 'record_id': '3,', 'record_hash': '2fec5278c6a8cc542e2810fb9b1cc55c'}, # -i
         {'sync_name': '__test__', 'section_name': 'records', 'record_id': '4,', 'record_hash': 'd449f95710bef4fa7044f758f0b7b010'},  # uu0
@@ -23,6 +24,7 @@
         {'sync_name': '__test__', 'section_name': 'records', 'record_id': '10,', 'record_hash': 'ddcf2d042fb12d69a6aa025091863079'}, # -u
         {'sync_name': '__test__', 'section_name': 'records', 'record_id': '11,', 'record_hash': '9adfa122c15cd3ea743eb27eab6df352'}, # -d
         {'sync_name': '__test__', 'section_name': 'records', 'record_id': '12,', 'record_hash': 'f3461235e0adbf30cd2cee1366ed6c82'}, # --
-        {'sync_name': '__test__', 'section_name': 'records', 'record_id': '13,', 'record_hash': 'a8ff618c7fbe2b038a06f292ff450582'}, # uu1
+        #{'sync_name': '__test__', 'section_name': 'records', 'record_id': '13,', 'record_hash': 'a8ff618c7fbe2b038a06f292ff450582'}, # ii1
+        {'sync_name': '__test__', 'section_name': 'records', 'record_id': '14,', 'record_hash': 'f3fcc31ed56b1b6acd7923a30b9aea04'}, # uu1
     ],
 }
