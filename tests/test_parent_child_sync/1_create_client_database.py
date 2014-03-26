@@ -8,6 +8,7 @@
         {'id': 10, 'column1': 'j', 'column2': 'j', 'column3': 'j'},
         {'id': 11, 'column1': 'k', 'column2': 'k', 'column3': 'k'},
         {'id': 12, 'column1': 'l', 'column2': 'l', 'column3': 'l'},
+        {'id': 13, 'column1': 'mm', 'column2': 'm', 'column3': 'm'},
     ],
     'record_hashes': [
         #{'sync_name': '__test__', 'section_name': 'records', 'record_id': '1,', 'record_hash': 'f05c4e469d21aac365fecd512f7a7dde'}, # ii
@@ -22,5 +23,6 @@
         {'sync_name': '__test__', 'section_name': 'records', 'record_id': '10,', 'record_hash': 'ddcf2d042fb12d69a6aa025091863079'}, # -u
         {'sync_name': '__test__', 'section_name': 'records', 'record_id': '11,', 'record_hash': '9adfa122c15cd3ea743eb27eab6df352'}, # -d
         {'sync_name': '__test__', 'section_name': 'records', 'record_id': '12,', 'record_hash': 'f3461235e0adbf30cd2cee1366ed6c82'}, # --
+        {'sync_name': '__test__', 'section_name': 'records', 'record_id': '13,', 'record_hash': 'a8ff618c7fbe2b038a06f292ff450582'}, # uu1
     ],
 }
