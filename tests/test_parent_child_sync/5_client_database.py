@@ -1,12 +1,22 @@
 {
     'records': [
-        {'id': 1, 'column1': 'a', 'column2': 'b', 'column3': 'c'},
-        {'id': 2, 'column1': 'd', 'column2': 'e', 'column3': 'f'},
-        {'id': 3, 'column1': 'g', 'column2': 'h', 'column3': 'i'},
+        {'id': 1, 'column1': 'aa', 'column2': 'aa', 'column3': 'aa'},
+        {'id': 2, 'column1': 'bb', 'column2': 'bb', 'column3': 'bb'},
+        {'id': 3, 'column1': 'cc', 'column2': 'cc', 'column3': 'cc'},
+        {'id': 4, 'column1': 'dd', 'column2': 'dd', 'column3': 'dd'},
+        {'id': 6, 'column1': 'ff', 'column2': 'ff', 'column3': 'ff'},
+        {'id': 7, 'column1': 'gg', 'column2': 'gg', 'column3': 'gg'},
+        {'id': 10, 'column1': 'jj', 'column2': 'jj', 'column3': 'jj'},
+        {'id': 12, 'column1': 'l', 'column2': 'l', 'column3': 'l'},
     ],
     'record_hashes': [
-        {'sync_name': '__test__', 'section_name': 'records', 'record_id': '1,', 'record_hash': 'a3b48eba3d1b7a709f6d47a9de10c523'},
-        {'sync_name': '__test__', 'section_name': 'records', 'record_id': '2,', 'record_hash': '9884607aeeef2524d55d4534dfc34df0'},
-        {'sync_name': '__test__', 'section_name': 'records', 'record_id': '3,', 'record_hash': 'd29699abc36d9e82b00e730ea6349398'},
+        {'sync_name': '__test__', 'section_name': 'records', 'record_id': '1,', 'record_hash': '1a57b511abde26fb329449bd68a66fca'},
+        {'sync_name': '__test__', 'section_name': 'records', 'record_id': '2,', 'record_hash': '125d5ccb56b2ce3b4a55734ef4a0fd5e'},
+        {'sync_name': '__test__', 'section_name': 'records', 'record_id': '3,', 'record_hash': '7ebd4189a70bb1fd2b3bd651e7706b3f'},
+        {'sync_name': '__test__', 'section_name': 'records', 'record_id': '4,', 'record_hash': '2f019ad1aa9818c34561cff03685b4d2'},
+        {'sync_name': '__test__', 'section_name': 'records', 'record_id': '6,', 'record_hash': '895dea6a73cc5dd4515b65449d8ae78e'},
+        {'sync_name': '__test__', 'section_name': 'records', 'record_id': '7,', 'record_hash': '182fa6753e68b1beb6a1162e6ab402c9'},
+        {'sync_name': '__test__', 'section_name': 'records', 'record_id': '10,', 'record_hash': 'f044433068ac279e50ebb5b3a835fad9'},
+        {'sync_name': '__test__', 'section_name': 'records', 'record_id': '12,', 'record_hash': 'f3461235e0adbf30cd2cee1366ed6c82'},
     ],
 }
