@@ -33,4 +33,4 @@ if __name__ == '__main__':
 
     # TODO: Trigger client onchange events
 
-    sync_client.self.log_to_console('DONE')
+    sync_client.log_to_console('DONE')
