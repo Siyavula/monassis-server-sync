@@ -339,10 +339,20 @@ class SyncClient:
             for record_id, actions in self.server_actions[section_name]:
                 if actions['our-action'] != 'delete':
                     continue
+                old_hash = actions['old-hash']
                 client_action = actions.get('their-action')
+                record_data, volatile_hash = record_database.get_record_and_compute_hash(self.config, section_name, record_id)
                 packed_record_id = record_database.record_id_to_url_string(record_id)
-                self.sync_session.delete_record_and_hash(section_name, packed_record_id)
-                self.local_hash_action(client_action, None, section_name, record_id)
+                if volatile_hash is None:
+                    self.sync_session.delete_record_and_hash(section_name, packed_record_id)
+                    self.local_hash_action(client_action, None, section_name, record_id)
+                elif volatile_hash != old_hash:
+                    # Record got re-inserted, but to something
+                    # different from what we had before the
+                    # delete. Update remotely rather than deleting and
+                    # update the local hash from the new record.
+                    self.sync_session.put_record_and_hash(section_name, packed_record_id, record_data, volatile_hash)
+                    self.local_hash_action('update-hash', volatile_hash, section_name, record_id)
                 counter += 1
             if counter > 0:
                 total_applied += counter

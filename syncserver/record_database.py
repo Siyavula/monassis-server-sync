@@ -642,7 +642,7 @@ def delete_record(config, section_name, record_id, volatile_hash=None):
         # something we're not expecting
         if __compute_hash(config, section_name, record_id) is not None:
             from syncserver.errors import VolatileConflict
-            raise VolatileConflict, "Tried to delete record, but found that it had been updated to something else (section_name=%s, record_id=%s, record_data=%s)"%(repr(section_name), repr(record_id), repr(record_data))
+            raise VolatileConflict, "Tried to delete record, but found that it had been updated to something else (section_name=%s, record_id=%s)"%(repr(section_name), repr(record_id))
         else:
             return 1 # Pretend that 1 row got deleted since no rows match record_id
     return affected_row_count
