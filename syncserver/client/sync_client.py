@@ -183,7 +183,11 @@ class SyncClient:
                 except VolatileConflict:
                     if record_database.get_config_merge_strategy_for_section(self.config, section_name) in ['slave', 'child']:
                         record_database.update_record(self.config, section_name, record_id, record_data)
-                record_database.insert_hash(self.config, section_name, record_id, new_hash)
+                # NOTE: Can't just do insert_hash() below since client
+                # might do a local insert when the client deleted a
+                # record while the server updated it under some sync
+                # strategies.
+                record_database.insert_or_update_hash(self.config, section_name, record_id, new_hash)
                 counter += 1
             if counter > 0:
                 total_applied += counter
