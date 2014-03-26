@@ -19,7 +19,6 @@ def init_testing_db():
 
     # Load records database
     from syncserver.tests import dbmodel
-    dbmodel.load_db()
 
     # Load sync server database
     Base.metadata.create_all()

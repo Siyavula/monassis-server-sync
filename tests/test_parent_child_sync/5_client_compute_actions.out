@@ -1,0 +1,10 @@
+Sync time: datetime.datetime(2014, 3, 26, 11, 10, 4, tzinfo=tzutc())
+Compute hash actions
+client
+   records              -- insert:    2,                             
+server
+   records              -- insert:    2,                             
+Compute data actions
+   records              -- c.it:    1, c.ut:    1, s.it:    1, 
+Writing state to file
+DONE

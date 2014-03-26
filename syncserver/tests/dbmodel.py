@@ -2,28 +2,6 @@ import sqlalchemy
 
 DB_VERSION = '1.0'
 
-def load_from_uri(uri):
-    global db, metadata, tables
-    db = sqlalchemy.create_engine(uri)
-    metadata = sqlalchemy.MetaData(db)
-    tables = {}
-
-
-# Determine which database to use from configuration file
-import ConfigParser
-parser = ConfigParser.SafeConfigParser()
-parser.read('database.cfg')
-db = None
-metadata = None
-tables = None
-try:
-    dbUri = parser.get('databases', 'nosetests')
-except ConfigParser.Error:
-    pass
-else:
-    load_from_uri(dbUri)
-
-
 def create(**columns):
     global tables
     return tables['records'].insert().values(**columns).execute().inserted_primary_key[0]
@@ -74,3 +52,26 @@ def load_db():
     except sqlalchemy.exc.NoSuchTableError:
         metadata.clear()
         make_empty_db()
+
+
+def load_from_uri(uri):
+    global db, metadata, tables
+    db = sqlalchemy.create_engine(uri)
+    metadata = sqlalchemy.MetaData(db)
+    tables = {}
+    load_db()
+
+
+# Determine which database to use from configuration file
+import ConfigParser
+parser = ConfigParser.SafeConfigParser()
+parser.read('database.cfg')
+db = None
+metadata = None
+tables = None
+try:
+    dbUri = parser.get('databases', 'nosetests')
+except ConfigParser.Error:
+    pass
+else:
+    load_from_uri(dbUri)
