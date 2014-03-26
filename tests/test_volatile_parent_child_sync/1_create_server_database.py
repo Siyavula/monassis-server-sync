@@ -1,10 +1,10 @@
 {
     'records': [
-        ##{'id': 1, 'column1': 'a', 'column2': 'a', 'column3': 'a'}, # ii0, volatile: u1
-        ##{'id': 2, 'column1': 'b', 'column2': 'b', 'column3': 'b'}, # ii0, volatile: d
-        ##{'id': 3, 'column1': 'c', 'column2': 'c', 'column3': 'c'}, # ii1, volatile: u0
-        ##{'id': 4, 'column1': 'd', 'column2': 'd', 'column3': 'd'}, # ii1, volatile: u1
-        ##{'id': 5, 'column1': 'e', 'column2': 'e', 'column3': 'e'}, # ii1, volatile: d
+        {'id': 1, 'column1': 'aa', 'column2': 'aa', 'column3': 'aa'}, # ii0, volatile: u1
+        {'id': 2, 'column1': 'bb', 'column2': 'bb', 'column3': 'bb'}, # ii0, volatile: d
+        {'id': 3, 'column1': 'cc', 'column2': 'cc', 'column3': 'cc'}, # ii1, volatile: u0
+        {'id': 4, 'column1': 'dd', 'column2': 'dd', 'column3': 'dd'}, # ii1, volatile: u1
+        {'id': 5, 'column1': 'ee', 'column2': 'ee', 'column3': 'ee'}, # ii1, volatile: d
         ##{'id': 6, 'column1': 'f', 'column2': 'f', 'column3': 'f'}, # i-,  volatile: u1
         ##{'id': 7, 'column1': 'g', 'column2': 'g', 'column3': 'g'}, # i-,  volatile: d
         ##{'id': 8, 'column1': 'h', 'column2': 'h', 'column3': 'h'}, # -i,  volatile: i0
@@ -33,11 +33,12 @@
         #{'id': 31, 'column1': '4', 'column2': '4', 'column3': '4'}, # --,  volatile: d
     ],
     'record_hashes': [
-        ##{'sync_name': '__test__', 'section_name': 'records', 'record_id': '1,', 'record_hash': 'f05c4e469d21aac365fecd512f7a7dde'}, # ii0, volatile: u1
-        ##{'sync_name': '__test__', 'section_name': 'records', 'record_id': '2,', 'record_hash': '5723533d6287c82d5aea7a905f424a2b'}, # ii0, volatile: d
-        ##{'sync_name': '__test__', 'section_name': 'records', 'record_id': '3,', 'record_hash': '2fec5278c6a8cc542e2810fb9b1cc55c'}, # ii1, volatile: u0
-        ##{'sync_name': '__test__', 'section_name': 'records', 'record_id': '4,', 'record_hash': 'd449f95710bef4fa7044f758f0b7b010'}, # ii1, volatile: u1
-        ##{'sync_name': '__test__', 'section_name': 'records', 'record_id': '5,', 'record_hash': 'ecf6bf0f43e7c06d6ed38384f0f17b5d'}, # ii1, volatile: d
+        #{'sync_name': '__test__', 'section_name': 'records', 'record_id': '1,', 'record_hash': 'f05c4e469d21aac365fecd512f7a7dde'}, # ii0, volatile: u1
+        #{'sync_name': '__test__', 'section_name': 'records', 'record_id': '2,', 'record_hash': '5723533d6287c82d5aea7a905f424a2b'}, # ii0, volatile: d
+        #{'sync_name': '__test__', 'section_name': 'records', 'record_id': '3,', 'record_hash': '2fec5278c6a8cc542e2810fb9b1cc55c'}, # ii1, volatile: u0
+        #{'sync_name': '__test__', 'section_name': 'records', 'record_id': '4,', 'record_hash': 'd449f95710bef4fa7044f758f0b7b010'}, # ii1, volatile: u1
+        #{'sync_name': '__test__', 'section_name': 'records', 'record_id': '5,', 'record_hash': 'ecf6bf0f43e7c06d6ed38384f0f17b5d'}, # ii1, volatile: d
+        ##
         ##{'sync_name': '__test__', 'section_name': 'records', 'record_id': '6,', 'record_hash': 'f3cb440b2fae1ac3a0c56e7aa4a06bc4'}, # i-,  volatile: u1
         ##{'sync_name': '__test__', 'section_name': 'records', 'record_id': '7,', 'record_hash': '711d14ace2ff5c6f8d67be57ff0f375c'}, # i-,  volatile: d
         ##{'sync_name': '__test__', 'section_name': 'records', 'record_id': '8,', 'record_hash': '7d9c5a64f319665e502c25e346b3c4a2'}, # -i,  volatile: i0
