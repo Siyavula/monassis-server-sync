@@ -3,7 +3,7 @@
 PYTHON_PATH=../env/bin/python
 PASTER_PATH=../env/bin/pserve
 CONFIG_PATH=../config
-ALL_TESTS="test_parent_child_sync"
+ALL_TESTS="test_master_slave_sync test_parent_child_sync"
 
 for TEST_NAME in ${ALL_TESTS} ; do
 
@@ -41,6 +41,6 @@ cd ..
 rm ${CONFIG_PATH}/__test__.ini
 
 # Report
-${PYTHON_PATH} 5_check_results.py ${TEST_NAME}
+${PYTHON_PATH} 5_check_results.py ${TEST_NAME} || exit 1
 
 done

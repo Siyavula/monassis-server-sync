@@ -42,4 +42,4 @@ for phase in ['compute', 'apply']:
             # Strip sync time
             expected_log = expected_log[expected_log.find('\n')+1:]
             actual_log = actual_log[actual_log.find('\n')+1:]
-        assert expected_log == actual_log
+        assert expected_log == actual_log, 'Log mismatch for (%s, %s)'%(phase, log)
