@@ -33,7 +33,7 @@ cd client
 cd ..
 
 # Optionally modify the database for volatile tests
-#${PYTHON_PATH} 3_modify_client_database.py ${TEST_NAME}
+${PYTHON_PATH} 3_modify_client_database.py ${TEST_NAME}
 
 # Run client phase 2: apply hash actions
 cd client
