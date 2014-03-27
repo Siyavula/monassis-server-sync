@@ -3,7 +3,7 @@
 PYTHON_PATH=../env/bin/python
 PASTER_PATH=../env/bin/pserve
 CONFIG_PATH=../config
-ALL_TESTS="test_master_slave_sync test_parent_child_sync test_volatile_master_slave_sync test_volatile_parent_child_sync"
+ALL_TESTS="test_master_slave_sync test_slave_master_sync test_parent_child_sync test_child_parent_sync test_volatile_master_slave_sync test_volatile_slave_master_sync test_volatile_parent_child_sync test_volatile_child_parent_sync"
 
 # Clean up
 cd server
