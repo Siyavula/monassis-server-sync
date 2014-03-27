@@ -1,0 +1,17 @@
+Sync time: datetime.datetime(2014, 3, 27, 9, 48, 6, tzinfo=tzutc())
+Reading state from file
+Apply all hash actions
+   records              --    5 applied
+Apply local inserts
+   records              --    2 applied
+Apply local updates
+   records              --    3 applied
+Apply local deletes
+   records              --    2 applied
+Apply remote insert
+   records              --    4 applied
+Apply remote updates
+   records              --    9 applied
+Apply remote deletes
+   records              --    4 applied
+DONE
