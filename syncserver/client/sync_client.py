@@ -129,6 +129,9 @@ class SyncClient:
         elif action == 'update-hash':
             assert hash is not None
             record_database.update_hash(self.config, section_name, record_id, hash)
+        elif action == 'insert-or-update-hash':
+            assert hash is not None
+            record_database.insert_or_update_hash(self.config, section_name, record_id, hash)
         elif action == 'delete-hash':
             record_database.delete_hash(self.config, section_name, record_id)
         else:
@@ -272,11 +275,13 @@ class SyncClient:
                 record_data, volatile_hash = record_database.get_record_and_compute_hash(self.config, section_name, record_id)
                 packed_record_id = record_database.record_id_to_url_string(record_id)
                 if volatile_hash is None:
-                    # Record got deleted locally before we could insert it
-                    # remotely. Do nothing remotely since it doesn't exist
-                    # there. Delete local hash if necessary.
+                    # Record got deleted locally before we could
+                    # insert it remotely. Do nothing remotely since it
+                    # doesn't exist there. Delete local hash if
+                    # necessary. Delete remote hash if necessary.
                     if client_action != 'insert-hash':
                         record_database.delete_hash(self.config, section_name, record_id)
+                    self.remote_hash_action('delete-hash', None, section_name, record_id)
                 else:
                     # If record got modified locally before we could
                     # insert it remotely, just sent the new record and
@@ -346,13 +351,12 @@ class SyncClient:
                 if volatile_hash is None:
                     self.sync_session.delete_record_and_hash(section_name, packed_record_id)
                     self.local_hash_action(client_action, None, section_name, record_id)
-                elif volatile_hash != old_hash:
-                    # Record got re-inserted, but to something
-                    # different from what we had before the
-                    # delete. Update remotely rather than deleting and
+                else:
+                    # Record got inserted or re-inserted. Update
+                    # remotely rather than deleting and insert or
                     # update the local hash from the new record.
                     self.sync_session.put_record_and_hash(section_name, packed_record_id, record_data, volatile_hash)
-                    self.local_hash_action('update-hash', volatile_hash, section_name, record_id)
+                    self.local_hash_action('insert-or-update-hash', volatile_hash, section_name, record_id)
                 counter += 1
             if counter > 0:
                 total_applied += counter
