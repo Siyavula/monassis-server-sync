@@ -12,7 +12,7 @@
         {'id': 14, 'column1': 'nn', 'column2': 'nn', 'column3': 'nn'},
     ],
     'record_hashes': [
-        #{'sync_name': '__test__', 'section_name': 'records', 'record_id': '1,', 'record_hash': 'f05c4e469d21aac365fecd512f7a7dde'}, # ii
+        #{'sync_name': '__test__', 'section_name': 'records', 'record_id': '1,', 'record_hash': 'f05c4e469d21aac365fecd512f7a7dde'}, # ii0
         #{'sync_name': '__test__', 'section_name': 'records', 'record_id': '2,', 'record_hash': '5723533d6287c82d5aea7a905f424a2b'}, # i-
         #{'sync_name': '__test__', 'section_name': 'records', 'record_id': '3,', 'record_hash': '2fec5278c6a8cc542e2810fb9b1cc55c'}, # -i
         {'sync_name': '__test__', 'section_name': 'records', 'record_id': '4,', 'record_hash': 'd449f95710bef4fa7044f758f0b7b010'},  # uu0
