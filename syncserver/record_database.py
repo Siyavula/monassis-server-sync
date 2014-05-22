@@ -134,29 +134,8 @@ Required methods:
 '''
 
 __DATABASE_REGISTRY = {
-    'bookdb': {
-        'module': 'monassis.books.dbmodel',
-        'version': 'DB_VERSION',
-        'database': 'db',
-        'tables': 'tables',
-        'hash_table': 'record_hashes',
-    },
-    'historydb': {
-        'module': 'monassis.historyservice.dbmodel',
-        'version': 'DB_VERSION',
-        'database': 'db',
-        'tables': 'tables',
-        'hash_table': 'record_hashes',
-    },
-    'templatedb': {
-        'module': 'monassis.qnxmlservice.dbmodel',
-        'version': 'DB_VERSION',
-        'database': 'db',
-        'tables': 'tables',
-        'hash_table': 'record_hashes',
-    },
-    'userdb': {
-        'module': 'monassis.usermanagement.dbmodel',
+    'monassisdb': {
+        'module': 'monassis.database',
         'version': 'DB_VERSION',
         'database': 'db',
         'tables': 'tables',
