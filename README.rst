@@ -24,6 +24,12 @@ then run:
 
   ``env/bin/nosetests``
 
+To run volatile tests, you need two databases, namely test_sync_client
+and test_sync_server, so create these in psql. Then:
+
+ * ``cd tests``
+ * ``./run_tests.sh``
+
 Production
 ----------
 
