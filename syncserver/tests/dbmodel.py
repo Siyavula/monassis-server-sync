@@ -37,7 +37,7 @@ def make_empty_db():
         sqlalchemy.Column('column3', sqlalchemy.String),
     )
 
-    from monassis.database import make_record_hash_table
+    from monassis.database.record_hash_table import make_record_hash_table
     tables['record_hashes'] = make_record_hash_table(metadata)
 
     for key in tables:
