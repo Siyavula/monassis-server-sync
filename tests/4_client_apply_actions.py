@@ -22,7 +22,7 @@ sync_client.client_actions = state['client_actions']
 sync_client.server_actions = state['server_actions']
 
 # Apply local and remote sync actions
-for method in [sync_client.apply_hash_actions, sync_client.apply_local_inserts, sync_client.apply_local_updates, sync_client.apply_local_deletes, sync_client.apply_remote_inserts, sync_client.apply_remote_updates, sync_client.apply_remote_deletes]:
+for method in [sync_client.apply_hash_actions, sync_client.apply_local_inserts_batch, sync_client.apply_local_updates, sync_client.apply_local_deletes, sync_client.apply_remote_inserts_batch, sync_client.apply_remote_updates, sync_client.apply_remote_deletes]:
     method(do_hash_check=True)
 
 sync_client.log_to_console('DONE')
