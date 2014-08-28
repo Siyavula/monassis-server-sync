@@ -276,6 +276,56 @@ class SyncClient:
             # Sanity check our updated hashes
             self.check_hash_consistency()
 
+    def apply_local_updates_batch(self, do_hash_check=False):
+        self.log_to_console('Apply local updates')
+        total_applied = 0
+        for section_name in self.section_names:
+            # Aggregate actions
+            actions_to_apply = [(record_id, actions) for record_id, actions in self.client_actions[section_name] if actions['our-action'] == 'update']
+            # Get records from server
+            packed_record_ids = [record_database.record_id_to_url_string(record_id) for record_id, actions in actions_to_apply]
+            records = self.sync_session.get_records_for_section(section_name, packed_record_ids)
+            # Apply actions on server
+            server_actions = []
+            for i in xrange(len(actions_to_apply)):
+                record_id, actions = actions_to_apply[i]
+                packed_record_id = packed_record_ids[i]
+                new_hash = actions['new-hash']
+                server_action = actions.get('their-action')
+                if server_action in ['insert-hash', 'update-hash']:
+                    assert new_hash is not None
+                    server_actions.append({'action': 'put', 'id': packed_record_id, 'hash': new_hash})
+                elif server_action == 'delete-hash':
+                    server_actions.append({'action': 'delete', 'id': packed_record_id})
+                else:
+                    assert server_action is None
+            self.sync_session.put_hashes_for_section(section_name, server_actions)
+            # Apply actions on client
+            for i in xrange(len(actions_to_apply)):
+                record_id, actions = actions_to_apply[i]
+                record_data = records[i]
+                old_hash = actions['old-hash']
+                new_hash = actions['new-hash']
+                try:
+                    record_database.update_record(self.config, section_name, record_id, record_data, volatile_hashes=(old_hash, new_hash))
+                except VolatileConflict, error:
+                    if record_database.get_config_merge_strategy_for_section(self.config, section_name) in ['slave', 'child']:
+                        if 'deleted' in error.message:
+                            record_database.insert_record(self.config, section_name, record_id, record_data)
+                        else:
+                            assert 'updated' in error.message
+                            record_database.update_record(self.config, section_name, record_id, record_data)
+                record_database.insert_or_update_hash(self.config, section_name, record_id, new_hash)
+            # Update log
+            count = len(actions_to_apply)
+            if count > 0:
+                total_applied += count
+                self.log_to_console('   %-20s -- %4i applied' % (section_name, count))
+
+        if do_hash_check and (total_applied > 0):
+            # Sanity check our updated hashes
+            self.check_hash_consistency()
+
     def apply_local_deletes(self, do_hash_check=False):
         self.log_to_console('Apply local deletes')
         total_applied = 0
@@ -297,6 +347,40 @@ class SyncClient:
             if counter > 0:
                 total_applied += counter
                 self.log_to_console('   %-20s -- %4i applied' % (section_name, counter))
+
+        if do_hash_check and (total_applied > 0):
+            # Sanity check our updated hashes
+            self.check_hash_consistency()
+
+    def apply_local_deletes_batch(self, do_hash_check=False):
+        self.log_to_console('Apply local deletes')
+        total_applied = 0
+        for section_name in reversed(self.section_names):
+            # Aggregate actions
+            actions_to_apply = [(record_id, actions) for record_id, actions in self.client_actions[section_name] if actions['our-action'] == 'delete']
+            # Apply actions on server
+            server_actions = []
+            for record_id, actions in actions_to_apply:
+                server_action = actions.get('their-action')
+                if server_action is not None:
+                    assert server_action == 'delete-hash'
+                    packed_record_id = record_database.record_id_to_url_string(record_id)
+                    server_actions.append({'action': 'delete', 'id': packed_record_id})
+            self.sync_session.put_hashes_for_section(section_name, server_actions)
+            # Apply actions on client
+            for record_id, actions in actions_to_apply:
+                old_hash = actions['old-hash']
+                try:
+                    record_database.delete_record(self.config, section_name, record_id, volatile_hash=old_hash)
+                except VolatileConflict:
+                    if record_database.get_config_merge_strategy_for_section(self.config, section_name) in ['slave', 'child']:
+                        record_database.delete_record(self.config, section_name, record_id)
+                record_database.delete_hash(self.config, section_name, record_id)
+            # Update log
+            count = len(actions_to_apply)
+            if count > 0:
+                total_applied += count
+                self.log_to_console('   %-20s -- %4i applied' % (section_name, count))
 
         if do_hash_check and (total_applied > 0):
             # Sanity check our updated hashes
@@ -419,6 +503,49 @@ class SyncClient:
             # Sanity check our updated hashes
             self.check_hash_consistency()
 
+    def apply_remote_updates_batch(self, do_hash_check=False):
+        self.log_to_console('Apply remote updates')
+        total_applied = 0
+        for section_name in self.section_names:
+            # Aggregate client and server actions
+            actions_to_apply = [(record_id, actions) for record_id, actions in self.server_actions[section_name] if actions['our-action'] == 'update']
+            client_actions = []
+            server_actions = []
+            for record_id, actions in actions_to_apply:
+                new_hash = actions['new-hash']
+                client_action = actions.get('their-action')
+                record_data, volatile_hash = record_database.get_record_and_compute_hash(self.config, section_name, record_id)
+                packed_record_id = record_database.record_id_to_url_string(record_id)
+                if volatile_hash is None:
+                    # Record got deleted locally before we could update it
+                    # remotely. Delete it remotely and from the local hash
+                    # table.
+                    server_actions.append({'action': 'delete', 'id': packed_record_id})
+                    client_actions.append({'action': 'delete-hash', 'id': record_id})
+                else:
+                    # If record got modified locally before we could
+                    # update it remotely, just send the new record and
+                    # update the local hash from the new record.
+                    server_actions.append({'action': 'put', 'id': packed_record_id, 'record': record_data, 'hash': volatile_hash})
+                    if (new_hash != volatile_hash) and (client_action is None):
+                        client_action = 'update-hash'
+                    if client_action is not None:
+                        client_actions.append({'action': client_action, 'id': record_id, 'hash': volatile_hash})
+            # Apply server actions
+            self.sync_session.put_records_and_hashes_for_section(section_name, server_actions)
+            # Apply client actions (of which all are hash actions)
+            for entry in client_actions:
+                self.local_hash_action(entry['action'], entry.get('hash'), section_name, entry['id'])
+            # Update log
+            count = len(actions_to_apply)
+            if count > 0:
+                total_applied += count
+                self.log_to_console('   %-20s -- %4i applied' % (section_name, count))
+
+        if do_hash_check and (total_applied > 0):
+            # Sanity check our updated hashes
+            self.check_hash_consistency()
+
     def apply_remote_deletes(self, do_hash_check=False):
         self.log_to_console('Apply remote deletes')
         total_applied = 0
@@ -427,7 +554,6 @@ class SyncClient:
             for record_id, actions in self.server_actions[section_name]:
                 if actions['our-action'] != 'delete':
                     continue
-                old_hash = actions['old-hash']
                 client_action = actions.get('their-action')
                 record_data, volatile_hash = record_database.get_record_and_compute_hash(self.config, section_name, record_id)
                 packed_record_id = record_database.record_id_to_url_string(record_id)
@@ -444,6 +570,44 @@ class SyncClient:
             if counter > 0:
                 total_applied += counter
                 self.log_to_console('   %-20s -- %4i applied' % (section_name, counter))
+
+        if do_hash_check and (total_applied > 0):
+            # Sanity check our updated hashes
+            self.check_hash_consistency()
+
+    def apply_remote_deletes_batch(self, do_hash_check=False):
+        self.log_to_console('Apply remote deletes')
+        total_applied = 0
+        for section_name in reversed(self.section_names):
+            # Aggregate client and server actions
+            actions_to_apply = [(record_id, actions) for record_id, actions in self.server_actions[section_name] if actions['our-action'] == 'delete']
+            client_actions = []
+            server_actions = []
+            for record_id, actions in actions_to_apply:
+                client_action = actions.get('their-action')
+                record_data, volatile_hash = record_database.get_record_and_compute_hash(self.config, section_name, record_id)
+                packed_record_id = record_database.record_id_to_url_string(record_id)
+                if volatile_hash is None:
+                    server_actions.append({'action': 'delete', 'id': packed_record_id})
+                    if client_action is not None:
+                        assert client_action == 'delete-hash'
+                        client_actions.append({'action': client_action, 'id': record_id})
+                else:
+                    # Record got inserted or re-inserted. Update
+                    # remotely rather than deleting and insert or
+                    # update the local hash from the new record.
+                    server_actions.append({'action': 'put', 'id': packed_record_id, 'record': record_data, 'hash': volatile_hash})
+                    client_actions.append({'action': 'insert-or-update-hash', 'id': record_id, 'hash': volatile_hash})
+            # Apply server actions
+            self.sync_session.put_records_and_hashes_for_section(section_name, server_actions)
+            # Apply client actions (of which all are hash actions)
+            for entry in client_actions:
+                self.local_hash_action(entry['action'], entry.get('hash'), section_name, entry['id'])
+            # Update log
+            count = len(actions_to_apply)
+            if count > 0:
+                total_applied += count
+                self.log_to_console('   %-20s -- %4i applied' % (section_name, count))
 
         if do_hash_check and (total_applied > 0):
             # Sanity check our updated hashes

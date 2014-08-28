@@ -25,7 +25,7 @@ if __name__ == '__main__':
     sync_client.compute_actions()
 
     # Apply local and remote sync actions
-    for method in [sync_client.apply_hash_actions, sync_client.apply_local_inserts_batch, sync_client.apply_local_updates, sync_client.apply_local_deletes, sync_client.apply_remote_inserts_batch, sync_client.apply_remote_updates, sync_client.apply_remote_deletes]:
+    for method in [sync_client.apply_hash_actions, sync_client.apply_local_inserts_batch, sync_client.apply_local_updates_batch, sync_client.apply_local_deletes_batch, sync_client.apply_remote_inserts_batch, sync_client.apply_remote_updates_batch, sync_client.apply_remote_deletes_batch]:
         try:
             method(do_hash_check=True)
         except HashError:
