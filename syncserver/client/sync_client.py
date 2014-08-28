@@ -203,7 +203,7 @@ class SyncClient:
             # Get records from server
             packed_record_ids = [record_database.record_id_to_url_string(record_id) for record_id, actions in actions_to_apply]
             records = self.sync_session.get_records_for_section(section_name, packed_record_ids)
-            # Apply hash actions on server
+            # Apply actions on server
             server_actions = []
             for i in xrange(len(actions_to_apply)):
                 record_id, actions = actions_to_apply[i]
