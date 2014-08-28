@@ -6,8 +6,10 @@ import sync_api
 class SyncClientError(Exception):
     pass
 
+
 class ConnectionError(SyncClientError):
     pass
+
 
 class HashError(SyncClientError):
     pass
@@ -24,12 +26,10 @@ class SyncClient:
         self.config = record_database.load_config_from_file(config_path, 'client', run_setup=True, sync_time=sync_time)
         self.section_names = record_database.get_config_section_names(self.config)
 
-
     def log_to_console(self, string):
         if self.log_file is not None:
             self.log_file.write(string + '\n')
             self.log_file.flush()
-
 
     def connect_to_server(self):
         connected = False
@@ -41,20 +41,18 @@ class SyncClient:
             except sync_api.DatabaseLocked:
                 import time
                 minutes = 2**attempts # Exponential back-off waiting time
-                self.log_to_console('Database locked, waiting %i minutes...'%(minutes))
+                self.log_to_console('Database locked, waiting %i minutes...' % (minutes))
                 time.sleep(60 * minutes)
                 attempts += 1
         if not connected:
-            self.log_to_console('Could not obtain database lock after max (%i) attempts'%(self.max_connection_attempts))
-            raise ConnectionError
-
+            self.log_to_console('Could not obtain database lock after max (%i) attempts' % (self.max_connection_attempts))
+            raise ConnectionError()
 
     def check_hash_consistency(self):
         client_hash_hash = record_database.get_hash_hash(self.config)
         server_hash_hash = self.sync_session.get_hash_hash()
         if client_hash_hash != server_hash_hash:
-            raise HashError, "Client and server have inconsistent hash-hashes"
-
+            raise HashError("Client and server have inconsistent hash-hashes")
 
     def compute_actions(self):
         self.log_to_console('Compute hash actions')
@@ -73,12 +71,12 @@ class SyncClient:
                     action_count = {'insert': 0, 'update': 0, 'delete': 0}
                     for entry in actions[section_name]:
                         action_count[entry[1][0]] += 1
-                    output = '   %-20s -- '%(section_name)
+                    output = '   %-20s -- ' % (section_name)
                     for action in ['insert', 'update', 'delete']:
                         if action_count[action] == 0:
                             output += ' '*(len(action)+8)
                         else:
-                            output += '%s: %4i, '%(action, action_count[action])
+                            output += '%s: %4i, ' % (action, action_count[action])
                     self.log_to_console(output)
 
         self.log_to_console('Compute data actions')
@@ -100,16 +98,15 @@ class SyncClient:
         # Write summary to log
         if self.log_file is not None:
             for section_name in self.section_names:
-                output = '   %-20s -- '%(section_name)
+                output = '   %-20s -- ' % (section_name)
                 for role, actions in [('client', self.client_actions), ('server', self.server_actions)]:
                     action_count = {'insert': 0, 'update': 0, 'delete': 0, 'insert-hash': 0, 'update-hash': 0, 'delete-hash': 0}
                     for record_id, action in actions[section_name]:
                         action_count[action['our-action']] += 1
                     for action in ['insert', 'update', 'delete', 'insert-hash', 'update-hash', 'delete-hash']:
                         if action_count[action] != 0:
-                            output += '%s.%s%s: %4i, '%(role[0], action[0], 'h' if action[-5:] == '-hash' else 't', action_count[action])
+                            output += '%s.%s%s: %4i, ' % (role[0], action[0], 'h' if action[-5:] == '-hash' else 't', action_count[action])
                 self.log_to_console(output)
-
 
     def remote_hash_action(self, action, hash, section_name, record_id):
         if action is not None:
@@ -120,7 +117,6 @@ class SyncClient:
             else:
                 assert action == 'delete-hash'
                 self.sync_session.delete_hash(section_name, packed_record_id)
-
 
     def local_hash_action(self, action, hash, section_name, record_id):
         if action == 'insert-hash':
@@ -136,7 +132,6 @@ class SyncClient:
             record_database.delete_hash(self.config, section_name, record_id)
         else:
             assert action is None
-
 
     def apply_hash_actions(self, do_hash_check=False):
         self.log_to_console('Apply all hash actions')
@@ -161,12 +156,11 @@ class SyncClient:
                     counter += 1
                 if counter > 0:
                     total_applied += counter
-                    self.log_to_console('   %-20s -- %4i applied'%(section_name, counter))
+                    self.log_to_console('   %-20s -- %4i applied' % (section_name, counter))
 
         if do_hash_check and (total_applied > 0):
             # Sanity check our updated hashes
             self.check_hash_consistency()
-
 
     def apply_local_inserts(self, do_hash_check=False):
         self.log_to_console('Apply local inserts')
@@ -194,12 +188,11 @@ class SyncClient:
                 counter += 1
             if counter > 0:
                 total_applied += counter
-                self.log_to_console('   %-20s -- %4i applied'%(section_name, counter))
+                self.log_to_console('   %-20s -- %4i applied' % (section_name, counter))
 
         if do_hash_check and (total_applied > 0):
             # Sanity check our updated hashes
             self.check_hash_consistency()
-
 
     def apply_local_updates(self, do_hash_check=False):
         self.log_to_console('Apply local updates')
@@ -228,12 +221,11 @@ class SyncClient:
                 counter += 1
             if counter > 0:
                 total_applied += counter
-                self.log_to_console('   %-20s -- %4i applied'%(section_name, counter))
+                self.log_to_console('   %-20s -- %4i applied' % (section_name, counter))
 
         if do_hash_check and (total_applied > 0):
             # Sanity check our updated hashes
             self.check_hash_consistency()
-
 
     def apply_local_deletes(self, do_hash_check=False):
         self.log_to_console('Apply local deletes')
@@ -255,12 +247,11 @@ class SyncClient:
                 counter += 1
             if counter > 0:
                 total_applied += counter
-                self.log_to_console('   %-20s -- %4i applied'%(section_name, counter))
+                self.log_to_console('   %-20s -- %4i applied' % (section_name, counter))
 
         if do_hash_check and (total_applied > 0):
             # Sanity check our updated hashes
             self.check_hash_consistency()
-
 
     def apply_remote_inserts(self, do_hash_check=False):
         self.log_to_console('Apply remote insert')
@@ -284,7 +275,7 @@ class SyncClient:
                     self.remote_hash_action('delete-hash', None, section_name, record_id)
                 else:
                     # If record got modified locally before we could
-                    # insert it remotely, just sent the new record and
+                    # insert it remotely, just send the new record and
                     # update the local hash from the new record.
                     self.sync_session.put_record_and_hash(section_name, packed_record_id, record_data, volatile_hash)
                     if (new_hash != volatile_hash) and (client_action is None):
@@ -293,12 +284,11 @@ class SyncClient:
                 counter += 1
             if counter > 0:
                 total_applied += counter
-                self.log_to_console('   %-20s -- %4i applied'%(section_name, counter))
+                self.log_to_console('   %-20s -- %4i applied' % (section_name, counter))
 
         if do_hash_check and (total_applied > 0):
             # Sanity check our updated hashes
             self.check_hash_consistency()
-
 
     def apply_remote_updates(self, do_hash_check=False):
         self.log_to_console('Apply remote updates')
@@ -320,7 +310,7 @@ class SyncClient:
                     record_database.delete_hash(self.config, section_name, record_id)
                 else:
                     # If record got modified locally before we could
-                    # update it remotely, just sent the new record and
+                    # update it remotely, just send the new record and
                     # update the local hash from the new record.
                     self.sync_session.put_record_and_hash(section_name, packed_record_id, record_data, volatile_hash)
                     if (new_hash != volatile_hash) and (client_action is None):
@@ -329,12 +319,11 @@ class SyncClient:
                 counter += 1
             if counter > 0:
                 total_applied += counter
-                self.log_to_console('   %-20s -- %4i applied'%(section_name, counter))
+                self.log_to_console('   %-20s -- %4i applied' % (section_name, counter))
 
         if do_hash_check and (total_applied > 0):
             # Sanity check our updated hashes
             self.check_hash_consistency()
-
 
     def apply_remote_deletes(self, do_hash_check=False):
         self.log_to_console('Apply remote deletes')
@@ -360,7 +349,7 @@ class SyncClient:
                 counter += 1
             if counter > 0:
                 total_applied += counter
-                self.log_to_console('   %-20s -- %4i applied'%(section_name, counter))
+                self.log_to_console('   %-20s -- %4i applied' % (section_name, counter))
 
         if do_hash_check and (total_applied > 0):
             # Sanity check our updated hashes
