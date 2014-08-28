@@ -284,7 +284,7 @@ class SyncClient:
                     self.remote_hash_action('delete-hash', None, section_name, record_id)
                 else:
                     # If record got modified locally before we could
-                    # insert it remotely, just sent the new record and
+                    # insert it remotely, just send the new record and
                     # update the local hash from the new record.
                     self.sync_session.put_record_and_hash(section_name, packed_record_id, record_data, volatile_hash)
                     if (new_hash != volatile_hash) and (client_action is None):
@@ -320,7 +320,7 @@ class SyncClient:
                     record_database.delete_hash(self.config, section_name, record_id)
                 else:
                     # If record got modified locally before we could
-                    # update it remotely, just sent the new record and
+                    # update it remotely, just send the new record and
                     # update the local hash from the new record.
                     self.sync_session.put_record_and_hash(section_name, packed_record_id, record_data, volatile_hash)
                     if (new_hash != volatile_hash) and (client_action is None):
