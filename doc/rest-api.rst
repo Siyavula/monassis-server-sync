@@ -80,9 +80,27 @@ Read a record (no lock required)::
 
     GET /{sync-name}/{section}/{id}/record
 
+Read multiple records from a section (no lock required)::
+
+    GET /{name}/{section}/records
+        < {'record_ids': [user-defined-record-id, ...]}
+        > {'records': [user-defined-record, ...]}
+
 Insert or update a record::
 
     PUT /{sync-name}/{section}/{id}/record
+
+Insert or update multiple records in a section::
+
+    PUT /{name}/{section}/records
+        < {
+              'lock_key': string,
+              'actions': [{
+                  'action': ('put', 'delete'),
+                  'id': user-defined-record-id,
+                  'record': user-defined-record,
+              }],
+          }
 
 Delete a record::
 
@@ -97,6 +115,18 @@ Read a record hash (no lock required)::
 Insert or update a record hash::
 
     PUT /{sync-name}/{section}/{id}/hash
+
+Insert or update multiple hashes in a section::
+
+    PUT /{name}/{section}/hashes
+        < {
+              'lock_key': string,
+              'actions': [{
+                  'action': ('put', 'delete'),
+                  'id': user-defined-record-id,
+                  'hash': user-defined-hash,
+              }],
+          }
 
 Delete a record hash::
 
@@ -120,6 +150,19 @@ Read a record and its hash (no lock required)::
 Insert or update a record and its hash::
 
     PUT /{sync-name}/{section}/{id}/record-hash
+
+Insert or update multiple records and hashes in a section::
+
+    PUT /{name}/{section}/record-hashes
+        < {
+              'lock_key': string,
+              'actions': [{
+                  'action': ('put', 'delete', 'delete-record', 'delete-hash'),
+                  'id': user-defined-record-id,
+                  'record': user-defined-record,
+                  'hash': user-defined-hash,
+              }],
+          }
 
 Delete a record and its hash::
 

@@ -28,14 +28,18 @@ def setup_routes(config):
     config.add_route('get_hash_hash', '/{name}/hash-hash', request_method='GET')
     config.add_route('get_hash_actions', '/{name}/hash-actions', request_method='GET')
     config.add_route('get_record', '/{name}/{section}/{id}/record', request_method='GET')
+    config.add_route('get_records_for_section', '/{name}/{section}/records', request_method='GET')
     config.add_route('put_record', '/{name}/{section}/{id}/record', request_method='PUT')
     config.add_route('delete_record', '/{name}/{section}/{id}/record', request_method='DELETE')
+    config.add_route('put_records_for_section', '/{name}/{section}/records', request_method='PUT')
     config.add_route('get_hash', '/{name}/{section}/{id}/hash', request_method='GET')
     config.add_route('put_hash', '/{name}/{section}/{id}/hash', request_method='PUT')
     config.add_route('delete_hash', '/{name}/{section}/{id}/hash', request_method='DELETE')
+    config.add_route('put_hashes_for_section', '/{name}/{section}/hashes', request_method='PUT')
     config.add_route('get_record_and_hash', '/{name}/{section}/{id}/record-hash', request_method='GET')
     config.add_route('put_record_and_hash', '/{name}/{section}/{id}/record-hash', request_method='PUT')
     config.add_route('delete_record_and_hash', '/{name}/{section}/{id}/record-hash', request_method='DELETE')
+    config.add_route('put_records_and_hashes_for_section', '/{name}/{section}/record-hashes', request_method='PUT')
     config.add_route('server_status', '/server_status', request_method='GET')
 
 
