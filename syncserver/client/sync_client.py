@@ -202,7 +202,10 @@ class SyncClient:
             actions_to_apply = [(record_id, actions) for record_id, actions in self.client_actions[section_name] if actions['our-action'] == 'insert']
             # Get records from server
             packed_record_ids = [record_database.record_id_to_url_string(record_id) for record_id, actions in actions_to_apply]
-            records = self.sync_session.get_records_for_section(section_name, packed_record_ids)
+            if len(packed_record_ids) > 0:
+                records = self.sync_session.get_records_for_section(section_name, packed_record_ids)
+            else:
+                records = []
             # Apply actions on server
             server_actions = []
             for i in xrange(len(actions_to_apply)):
@@ -217,7 +220,8 @@ class SyncClient:
                     server_actions.append({'action': 'delete', 'id': packed_record_id})
                 else:
                     assert server_action is None
-            self.sync_session.put_hashes_for_section(section_name, server_actions)
+            if len(server_actions) > 0:
+                self.sync_session.put_hashes_for_section(section_name, server_actions)
             # Apply actions on client
             for i in xrange(len(actions_to_apply)):
                 record_id, actions = actions_to_apply[i]
@@ -284,7 +288,10 @@ class SyncClient:
             actions_to_apply = [(record_id, actions) for record_id, actions in self.client_actions[section_name] if actions['our-action'] == 'update']
             # Get records from server
             packed_record_ids = [record_database.record_id_to_url_string(record_id) for record_id, actions in actions_to_apply]
-            records = self.sync_session.get_records_for_section(section_name, packed_record_ids)
+            if len(packed_record_ids) > 0:
+                records = self.sync_session.get_records_for_section(section_name, packed_record_ids)
+            else:
+                records = []
             # Apply actions on server
             server_actions = []
             for i in xrange(len(actions_to_apply)):
@@ -299,7 +306,8 @@ class SyncClient:
                     server_actions.append({'action': 'delete', 'id': packed_record_id})
                 else:
                     assert server_action is None
-            self.sync_session.put_hashes_for_section(section_name, server_actions)
+            if len(server_actions) > 0:
+                self.sync_session.put_hashes_for_section(section_name, server_actions)
             # Apply actions on client
             for i in xrange(len(actions_to_apply)):
                 record_id, actions = actions_to_apply[i]
@@ -366,7 +374,8 @@ class SyncClient:
                     assert server_action == 'delete-hash'
                     packed_record_id = record_database.record_id_to_url_string(record_id)
                     server_actions.append({'action': 'delete', 'id': packed_record_id})
-            self.sync_session.put_hashes_for_section(section_name, server_actions)
+            if len(server_actions) > 0:
+                self.sync_session.put_hashes_for_section(section_name, server_actions)
             # Apply actions on client
             for record_id, actions in actions_to_apply:
                 old_hash = actions['old-hash']
@@ -454,7 +463,8 @@ class SyncClient:
                     if client_action is not None:
                         client_actions.append({'action': client_action, 'id': record_id, 'hash': volatile_hash})
             # Apply server actions
-            self.sync_session.put_records_and_hashes_for_section(section_name, server_actions)
+            if len(server_actions) > 0:
+                self.sync_session.put_records_and_hashes_for_section(section_name, server_actions)
             # Apply client actions (of which all are hash actions)
             for entry in client_actions:
                 self.local_hash_action(entry['action'], entry.get('hash'), section_name, entry['id'])
@@ -532,7 +542,8 @@ class SyncClient:
                     if client_action is not None:
                         client_actions.append({'action': client_action, 'id': record_id, 'hash': volatile_hash})
             # Apply server actions
-            self.sync_session.put_records_and_hashes_for_section(section_name, server_actions)
+            if len(server_actions) > 0:
+                self.sync_session.put_records_and_hashes_for_section(section_name, server_actions)
             # Apply client actions (of which all are hash actions)
             for entry in client_actions:
                 self.local_hash_action(entry['action'], entry.get('hash'), section_name, entry['id'])
@@ -599,7 +610,8 @@ class SyncClient:
                     server_actions.append({'action': 'put', 'id': packed_record_id, 'record': record_data, 'hash': volatile_hash})
                     client_actions.append({'action': 'insert-or-update-hash', 'id': record_id, 'hash': volatile_hash})
             # Apply server actions
-            self.sync_session.put_records_and_hashes_for_section(section_name, server_actions)
+            if len(server_actions) > 0:
+                self.sync_session.put_records_and_hashes_for_section(section_name, server_actions)
             # Apply client actions (of which all are hash actions)
             for entry in client_actions:
                 self.local_hash_action(entry['action'], entry.get('hash'), section_name, entry['id'])
