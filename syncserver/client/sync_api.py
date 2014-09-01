@@ -33,10 +33,11 @@ class SyncSession:
             urlparse.urljoin(self.host_uri, '/%s/lock' % (self.sync_name)),
             **self.request_params)
         self.__handle_unexpected_status_codes(response, [200, 423])
-        if response.status_code == 200:
-            self.lock_key = json.loads(response.content)['lock_key']
-        else:
-            raise DatabaseLocked(423, json.loads(response.content)['error']['message'])
+        body = json.loads(response.content)
+        if response.status_code == 423:
+            raise DatabaseLocked(423, body['error']['message'])
+        self.lock_key = body['lock_key']
+        self.server_vars = body['server_vars']
 
     def __del__(self):
         if self.lock_key is not None:

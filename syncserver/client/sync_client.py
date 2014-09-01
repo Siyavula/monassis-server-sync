@@ -58,6 +58,8 @@ class SyncClient:
         self.log_to_console('Compute hash actions')
 
         # Compute client hash actions to get from old to new hashes
+        new_config = record_database.load_config_from_name(record_database.get_config_sync_name(self.config), 'client', run_setup=True, sync_time=record_database.get_config_sync_time(self.config), server_vars=self.sync_session.server_vars)
+        self.config = new_config
         client_hash_actions = record_database.get_hash_actions(self.config)
 
         # Find out how hashes have changed on the server

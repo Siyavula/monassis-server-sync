@@ -19,16 +19,26 @@ import syncserver.record_database as record_database
 def lock_view(request):
     '''
     PUT /{name}/lock
-        < {}
-        > {'lock_key': string}
+        < {'sync_time': iso8601 (optional)}
+        > {'lock_key': string, 'server_vars': user-defined-config-vars}
         > raises 423: DatabaseLocked
     '''
     sync_name = request.matchdict['name']
+    sync_time = request.json_body.get('sync_time')
+    try:
+        sync_time = utils.parse_iso8601(sync_time)
+    except ValueError:
+        raise HTTPBadRequest("Bad sync_time format")
     try:
         key = Lock.obtain_lock(sync_name)
     except LockError:
         raise DatabaseLocked("The database is already locked by someone else")
-    return {'lock_key': key}
+    print 'Sync time:', repr(sync_time)
+    config = record_database.load_config_from_name(sync_name, 'server', run_setup=True, sync_time=sync_time)
+    return {
+        'lock_key': key,
+        'server_vars': record_database.get_config_server_vars(self.config),
+    }
 
 
 @view_config(route_name='unlock', renderer='json')
@@ -64,7 +74,7 @@ def get_hash_hash_view(request):
 def get_hash_actions_view(request):
     '''
     GET /{name}/hash-actions
-        < {'lock_key': string, 'sync_time': iso8601 (optional), 'client_vars': user-defined-client-vars (optional)}
+        < {'lock_key': string, 'sync_time': iso8601 (optional), 'client_vars': user-defined-config-vars (optional)}
         > {'hash_actions': {section_name (string): [[user-defined-record-id, ['insert', user-defined-hash] or ['update', user-defined-hash, user-defined-hash] or ['delete', user-defined-hash]]]}}
         > raises 400: HTTPBadRequest
         > raises 423: DatabaseLocked
@@ -79,8 +89,6 @@ def get_hash_actions_view(request):
     except ValueError:
         raise HTTPBadRequest("Bad sync_time format")
     client_vars = request.json_body.get('client_vars')
-
-    print 'Sync time:', repr(sync_time)
     config = record_database.load_config_from_name(sync_name, 'server', run_setup=True, sync_time=sync_time, client_vars=client_vars)
     hash_actions = record_database.get_hash_actions(config)
     return {'hash_actions': hash_actions}
