@@ -19,7 +19,7 @@ import syncserver.record_database as record_database
 def lock_view(request):
     '''
     PUT /{name}/lock
-        < {'sync_time': iso8601 (optional)}
+        < {'sync_time': iso8601}
         > {'lock_key': string, 'server_vars': user-defined-config-vars}
         > raises 423: DatabaseLocked
     '''
@@ -37,7 +37,7 @@ def lock_view(request):
     config = record_database.load_config_from_name(sync_name, 'server', run_setup=True, sync_time=sync_time)
     return {
         'lock_key': key,
-        'server_vars': record_database.get_config_server_vars(self.config),
+        'server_vars': record_database.get_config_server_vars(config),
     }
 
 
@@ -74,7 +74,7 @@ def get_hash_hash_view(request):
 def get_hash_actions_view(request):
     '''
     GET /{name}/hash-actions
-        < {'lock_key': string, 'sync_time': iso8601 (optional), 'client_vars': user-defined-config-vars (optional)}
+        < {'lock_key': string, 'sync_time': iso8601, 'client_vars': user-defined-config-vars (optional)}
         > {'hash_actions': {section_name (string): [[user-defined-record-id, ['insert', user-defined-hash] or ['update', user-defined-hash, user-defined-hash] or ['delete', user-defined-hash]]]}}
         > raises 400: HTTPBadRequest
         > raises 423: DatabaseLocked

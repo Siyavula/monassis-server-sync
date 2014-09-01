@@ -23,7 +23,13 @@ class SyncClient:
         self.log_file = log_file
         # Load config and adjust for client side
         self.log_to_console('Sync time: ' + repr(sync_time))
-        self.config = record_database.load_config_from_file(config_path, 'client', run_setup=True, sync_time=sync_time)
+        self.config_path = config_path
+        self.sync_time = sync_time
+        self.config = record_database.load_config_from_file(
+            config_path,
+            'client',
+            run_setup=True,
+            sync_time=sync_time)
         self.section_names = record_database.get_config_section_names(self.config)
 
     def log_to_console(self, string):
@@ -36,7 +42,10 @@ class SyncClient:
         attempts = 0
         while not connected and (attempts < self.max_connection_attempts):
             try:
-                self.sync_session = sync_api.SyncSession(record_database.get_config_sync_name(self.config), record_database.get_config_sync_url(self.config))
+                self.sync_session = sync_api.SyncSession(
+                    record_database.get_config_sync_name(self.config),
+                    record_database.get_config_sync_url(self.config),
+                    record_database.get_config_sync_time(self.config))
                 connected = True
             except sync_api.DatabaseLocked:
                 import time
@@ -57,9 +66,15 @@ class SyncClient:
     def compute_actions(self):
         self.log_to_console('Compute hash actions')
 
+        # Update config with server variables
+        self.config = record_database.load_config_from_file(
+            self.config_path,
+            'client',
+            run_setup=True,
+            sync_time=self.sync_time,
+            server_vars=self.sync_session.server_vars)
+
         # Compute client hash actions to get from old to new hashes
-        new_config = record_database.load_config_from_name(record_database.get_config_sync_name(self.config), 'client', run_setup=True, sync_time=record_database.get_config_sync_time(self.config), server_vars=self.sync_session.server_vars)
-        self.config = new_config
         client_hash_actions = record_database.get_hash_actions(self.config)
 
         # Find out how hashes have changed on the server
