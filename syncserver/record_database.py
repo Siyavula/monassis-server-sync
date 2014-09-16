@@ -442,7 +442,12 @@ def get_hash_actions(config, sections=None):
             full_where_clause = full_where_clause & where_clause
         select = sqlalchemy.sql.select(id_columns + [record_hash], full_where_clause).select_from(record_table.join(select_hash, select_hash.c.record_id == record_id, isouter=True))
         result = database.execute(select)
-        hash_actions[section_name] += [(tuple(row)[:-1], ('insert', tuple(row)[-1])) for row in result]
+        # Fix: have observed duplicate records here, but not sure
+        # why. Workaround is to check that new record hash is equal in
+        # records with duplicate ids and then delete the
+        # duplicates. This is done using list(set(...)). The check for
+        # duplicate record ids still happens further below.
+        hash_actions[section_name] += list(set([(tuple(row)[:-1], ('insert', tuple(row)[-1])) for row in result]))
         result.close()
 
         # Deleted records, but still in hash table
@@ -468,6 +473,7 @@ def get_hash_actions(config, sections=None):
         hash_actions[section_name] += [(tuple(row)[:-2], ('update',) + tuple(row)[-2:]) for row in result]
         result.close()
 
+        # Check for duplicate record ids in actions
         if len(set([x[0] for x in hash_actions[section_name]])) != len(hash_actions[section_name]):
             message = "Duplicate record ids found in hash actions for section %s"%(repr(section_name))
             h = hash_actions[section_name]
