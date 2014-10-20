@@ -29,7 +29,7 @@ sleep 1
 # Run client phase 1: compute hash actions
 ln -s `pwd`/${TEST_NAME}/config.ini ${CONFIG_PATH}/__test__.ini
 cd client
-../${PYTHON_PATH} ../2_client_compute_actions.py ../${CONFIG_PATH}/__test__.ini > client_compute_actions.out 2> client_compute_actions.err || { echo 'ERROR'; exit 1; }
+../${PYTHON_PATH} ../2_client_compute_actions.py ../${CONFIG_PATH}/__test__.ini > client_compute_actions.out 2> client_compute_actions.err || { echo 'ERROR on running 2_client_compute_actions.py'; exit 1; }
 cd ..
 
 # Optionally modify the database for volatile tests
@@ -37,7 +37,7 @@ ${PYTHON_PATH} 3_modify_client_database.py ${TEST_NAME}
 
 # Run client phase 2: apply hash actions
 cd client
-../${PYTHON_PATH} ../4_client_apply_actions.py ../${CONFIG_PATH}/__test__.ini > client_apply_actions.out 2> client_apply_actions.err || { echo 'ERROR'; exit 1; }
+../${PYTHON_PATH} ../4_client_apply_actions.py ../${CONFIG_PATH}/__test__.ini > client_apply_actions.out 2> client_apply_actions.err || { echo 'ERROR on running 4_client_apply_actions.py'; exit 1; }
 cd ..
 
 # Clean up
@@ -47,6 +47,6 @@ cd ..
 rm ${CONFIG_PATH}/__test__.ini
 
 # Report
-${PYTHON_PATH} 5_check_results.py ${TEST_NAME} || { echo 'ERROR'; exit 1; }
+${PYTHON_PATH} 5_check_results.py ${TEST_NAME} || { echo 'ERROR on running 5_check_results.py'; exit 1; }
 
 done
