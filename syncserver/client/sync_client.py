@@ -3,6 +3,8 @@ from syncserver.errors import VolatileConflict
 import sync_api
 
 
+TRANSACTIONS_FILENAME = '.sync_transactions'
+
 class SyncClientError(Exception):
     pass
 
@@ -31,6 +33,7 @@ class SyncClient:
             run_setup=True,
             sync_time=sync_time)
         self.section_names = record_database.get_config_section_names(self.config)
+        self.transactions = None
 
     def log_to_console(self, string):
         if self.log_file is not None:
@@ -125,6 +128,45 @@ class SyncClient:
                             output += '%s.%s%s: %4i, ' % (role[0], action[0], 'h' if action[-5:] == '-hash' else 't', action_count[action])
                 self.log_to_console(output)
 
+    def start_transaction_block(self):
+        if self.transactions is not None:
+            raise ValueError("Starting a new transaction block while the previous one has not been emptied")
+        else:
+            # Truncate transactions file
+            self.transactions = []
+            with open(TRANSACTIONS_FILENAME, 'wt') as fp:
+                pass
+
+    def add_transaction(self, method, *args, **kwargs):
+        if self.transactions is None:
+            raise ValueError("Trying to add a transaction without having started a transaction block")
+        if (method != 'remote_hash_action') and (method[:method.find('.')] != 'sync_session'):
+            self.log_to_console('WARNING: Unrecognised transaction method ' + repr(method))
+        self.transactions.append((method, args, kwargs))
+        with open(TRANSACTIONS_FILENAME, 'at') as fp:
+            fp.write(repr(self.transactions[-1]) + '\n')
+
+    def execute_transaction_block(self):
+        if self.transactions is None:
+            raise ValueError("Trying to execute a transaction block without having started it")
+        while True:
+            try:
+                method, args, kwargs = self.transactions.pop(0)
+            except IndexError:
+                break
+            else:
+                obj = self
+                for part in method.split('.'):
+                    obj = getattr(obj, part)
+                obj(*args, **kwargs)
+                with open(TRANSACTIONS_FILENAME, 'rt') as fp:
+                    from ast import literal_eval
+                    assert literal_eval(fp.readline().strip()) == (method, args, kwargs)
+                with open(TRANSACTIONS_FILENAME, 'wt') as fp:
+                    for transaction in self.transactions:
+                        fp.write(repr(x) + '\n')
+        self.transactions = None
+
     def remote_hash_action(self, action, hash, section_name, record_id):
         if action is not None:
             packed_record_id = record_database.record_id_to_url_string(record_id)
@@ -160,6 +202,7 @@ class SyncClient:
                     my_action = actions['our-action']
                     if my_action[-5:] != '-hash':
                         continue
+                    self.start_transaction_block()
                     new_hash = actions.get('new-hash')
                     other_action = actions.get('their-action')
                     if source == self.client_actions:
@@ -168,8 +211,9 @@ class SyncClient:
                     else:
                         client_action = other_action
                         server_action = my_action
-                    self.remote_hash_action(server_action, new_hash, section_name, record_id)
+                    self.add_transaction('remote_hash_action', server_action, new_hash, section_name, record_id)
                     self.local_hash_action(client_action, new_hash, section_name, record_id)
+                    self.execute_transaction_block()
                     counter += 1
                 if counter > 0:
                     total_applied += counter
@@ -187,11 +231,12 @@ class SyncClient:
             for record_id, actions in self.client_actions[section_name]:
                 if actions['our-action'] != 'insert':
                     continue
+                self.start_transaction_block()
                 new_hash = actions['new-hash']
                 server_action = actions.get('their-action')
                 packed_record_id = record_database.record_id_to_url_string(record_id)
                 record_data = self.sync_session.get_record(section_name, packed_record_id)
-                self.remote_hash_action(server_action, new_hash, section_name, record_id)
+                self.add_transaction('remote_hash_action', server_action, new_hash, section_name, record_id)
                 try:
                     record_database.insert_record(self.config, section_name, record_id, record_data, volatile_hash=new_hash)
                 except VolatileConflict:
@@ -202,6 +247,7 @@ class SyncClient:
                 # record while the server updated it under some sync
                 # strategies.
                 record_database.insert_or_update_hash(self.config, section_name, record_id, new_hash)
+                self.execute_transaction_block()
                 counter += 1
             if counter > 0:
                 total_applied += counter
@@ -215,6 +261,7 @@ class SyncClient:
         self.log_to_console('Apply local inserts')
         total_applied = 0
         for section_name in self.section_names:
+            self.start_transaction_block()
             # Aggregate actions
             actions_to_apply = [(record_id, actions) for record_id, actions in self.client_actions[section_name] if actions['our-action'] == 'insert']
             # Get records from server
@@ -238,7 +285,7 @@ class SyncClient:
                 else:
                     assert server_action is None
             if len(server_actions) > 0:
-                self.sync_session.put_hashes_for_section(section_name, server_actions)
+                self.add_transaction('sync_session.put_hashes_for_section', section_name, server_actions)
             # Apply actions on client
             for i in xrange(len(actions_to_apply)):
                 record_id, actions = actions_to_apply[i]
@@ -255,6 +302,7 @@ class SyncClient:
                 # strategies.
                 record_database.insert_or_update_hash(self.config, section_name, record_id, new_hash)
             # Update log
+            self.execute_transaction_block()
             count = len(actions_to_apply)
             if count > 0:
                 total_applied += count
@@ -272,12 +320,13 @@ class SyncClient:
             for record_id, actions in self.client_actions[section_name]:
                 if actions['our-action'] != 'update':
                     continue
+                self.start_transaction_block()
                 old_hash = actions['old-hash']
                 new_hash = actions['new-hash']
                 server_action = actions.get('their-action')
                 packed_record_id = record_database.record_id_to_url_string(record_id)
                 record_data = self.sync_session.get_record(section_name, packed_record_id)
-                self.remote_hash_action(server_action, new_hash, section_name, record_id)
+                self.add_transaction('remote_hash_action', server_action, new_hash, section_name, record_id)
                 try:
                     record_database.update_record(self.config, section_name, record_id, record_data, volatile_hashes=(old_hash, new_hash))
                 except VolatileConflict, error:
@@ -288,6 +337,7 @@ class SyncClient:
                             assert 'updated' in error.message
                             record_database.update_record(self.config, section_name, record_id, record_data)
                 record_database.insert_or_update_hash(self.config, section_name, record_id, new_hash)
+                self.execute_transaction_block()
                 counter += 1
             if counter > 0:
                 total_applied += counter
@@ -301,6 +351,7 @@ class SyncClient:
         self.log_to_console('Apply local updates')
         total_applied = 0
         for section_name in self.section_names:
+            self.start_transaction_block()
             # Aggregate actions
             actions_to_apply = [(record_id, actions) for record_id, actions in self.client_actions[section_name] if actions['our-action'] == 'update']
             # Get records from server
@@ -324,7 +375,7 @@ class SyncClient:
                 else:
                     assert server_action is None
             if len(server_actions) > 0:
-                self.sync_session.put_hashes_for_section(section_name, server_actions)
+                self.add_transaction('sync_session.put_hashes_for_section', section_name, server_actions)
             # Apply actions on client
             for i in xrange(len(actions_to_apply)):
                 record_id, actions = actions_to_apply[i]
@@ -342,6 +393,7 @@ class SyncClient:
                             record_database.update_record(self.config, section_name, record_id, record_data)
                 record_database.insert_or_update_hash(self.config, section_name, record_id, new_hash)
             # Update log
+            self.execute_transaction_block()
             count = len(actions_to_apply)
             if count > 0:
                 total_applied += count
@@ -359,15 +411,17 @@ class SyncClient:
             for record_id, actions in self.client_actions[section_name]:
                 if actions['our-action'] != 'delete':
                     continue
+                self.start_transaction_block()
                 old_hash = actions['old-hash']
                 server_action = actions.get('their-action')
-                self.remote_hash_action(server_action, None, section_name, record_id)
+                self.add_transaction('remote_hash_action', server_action, None, section_name, record_id)
                 try:
                     record_database.delete_record(self.config, section_name, record_id, volatile_hash=old_hash)
                 except VolatileConflict:
                     if record_database.get_config_merge_strategy_for_section(self.config, section_name) in ['slave', 'child']:
                         record_database.delete_record(self.config, section_name, record_id)
                 record_database.delete_hash(self.config, section_name, record_id)
+                self.execute_transaction_block()
                 counter += 1
             if counter > 0:
                 total_applied += counter
@@ -381,6 +435,7 @@ class SyncClient:
         self.log_to_console('Apply local deletes')
         total_applied = 0
         for section_name in reversed(self.section_names):
+            self.start_transaction_block()
             # Aggregate actions
             actions_to_apply = [(record_id, actions) for record_id, actions in self.client_actions[section_name] if actions['our-action'] == 'delete']
             # Apply actions on server
@@ -392,7 +447,7 @@ class SyncClient:
                     packed_record_id = record_database.record_id_to_url_string(record_id)
                     server_actions.append({'action': 'delete', 'id': packed_record_id})
             if len(server_actions) > 0:
-                self.sync_session.put_hashes_for_section(section_name, server_actions)
+                self.add_transaction('sync_session.put_hashes_for_section', section_name, server_actions)
             # Apply actions on client
             for record_id, actions in actions_to_apply:
                 old_hash = actions['old-hash']
@@ -403,6 +458,7 @@ class SyncClient:
                         record_database.delete_record(self.config, section_name, record_id)
                 record_database.delete_hash(self.config, section_name, record_id)
             # Update log
+            self.execute_transaction_block()
             count = len(actions_to_apply)
             if count > 0:
                 total_applied += count
@@ -420,6 +476,7 @@ class SyncClient:
             for record_id, actions in self.server_actions[section_name]:
                 if actions['our-action'] != 'insert':
                     continue
+                self.start_transaction_block()
                 new_hash = actions['new-hash']
                 client_action = actions.get('their-action')
                 record_data, volatile_hash = record_database.get_record_and_compute_hash(self.config, section_name, record_id)
@@ -431,15 +488,16 @@ class SyncClient:
                     # necessary. Delete remote hash if necessary.
                     if client_action != 'insert-hash':
                         record_database.delete_hash(self.config, section_name, record_id)
-                    self.remote_hash_action('delete-hash', None, section_name, record_id)
+                    self.add_transaction('remote_hash_action', 'delete-hash', None, section_name, record_id)
                 else:
                     # If record got modified locally before we could
                     # insert it remotely, just send the new record and
                     # update the local hash from the new record.
-                    self.sync_session.put_record_and_hash(section_name, packed_record_id, record_data, volatile_hash)
+                    self.add_transaction('sync_session.put_record_and_hash', section_name, packed_record_id, record_data, volatile_hash)
                     if (new_hash != volatile_hash) and (client_action is None):
                         client_action = 'update-hash'
                     self.local_hash_action(client_action, volatile_hash, section_name, record_id)
+                self.execute_transaction_block()
                 counter += 1
             if counter > 0:
                 total_applied += counter
@@ -454,6 +512,7 @@ class SyncClient:
         total_applied = 0
         for section_name in self.section_names:
             # Aggregate client and server actions
+            self.start_transaction_block()
             actions_to_apply = [(record_id, actions) for record_id, actions in self.server_actions[section_name] if actions['our-action'] == 'insert']
             client_actions = []
             server_actions = []
@@ -481,11 +540,12 @@ class SyncClient:
                         client_actions.append({'action': client_action, 'id': record_id, 'hash': volatile_hash})
             # Apply server actions
             if len(server_actions) > 0:
-                self.sync_session.put_records_and_hashes_for_section(section_name, server_actions)
+                self.add_transaction('sync_session.put_records_and_hashes_for_section', section_name, server_actions)
             # Apply client actions (of which all are hash actions)
             for entry in client_actions:
                 self.local_hash_action(entry['action'], entry.get('hash'), section_name, entry['id'])
             # Update log
+            self.execute_transaction_block()
             count = len(actions_to_apply)
             if count > 0:
                 total_applied += count
@@ -503,6 +563,7 @@ class SyncClient:
             for record_id, actions in self.server_actions[section_name]:
                 if actions['our-action'] != 'update':
                     continue
+                self.start_transaction_block()
                 new_hash = actions['new-hash']
                 client_action = actions.get('their-action')
                 record_data, volatile_hash = record_database.get_record_and_compute_hash(self.config, section_name, record_id)
@@ -511,16 +572,17 @@ class SyncClient:
                     # Record got deleted locally before we could update it
                     # remotely. Delete it remotely and from the local hash
                     # table.
-                    self.sync_session.delete_record_and_hash(section_name, packed_record_id)
+                    self.add_transaction('sync_session.delete_record_and_hash', section_name, packed_record_id)
                     record_database.delete_hash(self.config, section_name, record_id)
                 else:
                     # If record got modified locally before we could
                     # update it remotely, just send the new record and
                     # update the local hash from the new record.
-                    self.sync_session.put_record_and_hash(section_name, packed_record_id, record_data, volatile_hash)
+                    self.add_transaction('sync_session.put_record_and_hash', section_name, packed_record_id, record_data, volatile_hash)
                     if (new_hash != volatile_hash) and (client_action is None):
                         client_action = 'update-hash'
                     self.local_hash_action(client_action, volatile_hash, section_name, record_id)
+                self.execute_transaction_block()
                 counter += 1
             if counter > 0:
                 total_applied += counter
@@ -535,6 +597,7 @@ class SyncClient:
         total_applied = 0
         for section_name in self.section_names:
             # Aggregate client and server actions
+            self.start_transaction_block()
             actions_to_apply = [(record_id, actions) for record_id, actions in self.server_actions[section_name] if actions['our-action'] == 'update']
             client_actions = []
             server_actions = []
@@ -560,11 +623,12 @@ class SyncClient:
                         client_actions.append({'action': client_action, 'id': record_id, 'hash': volatile_hash})
             # Apply server actions
             if len(server_actions) > 0:
-                self.sync_session.put_records_and_hashes_for_section(section_name, server_actions)
+                self.add_transaction('sync_session.put_records_and_hashes_for_section', section_name, server_actions)
             # Apply client actions (of which all are hash actions)
             for entry in client_actions:
                 self.local_hash_action(entry['action'], entry.get('hash'), section_name, entry['id'])
             # Update log
+            self.execute_transaction_block()
             count = len(actions_to_apply)
             if count > 0:
                 total_applied += count
@@ -582,18 +646,20 @@ class SyncClient:
             for record_id, actions in self.server_actions[section_name]:
                 if actions['our-action'] != 'delete':
                     continue
+                self.start_transaction_block()
                 client_action = actions.get('their-action')
                 record_data, volatile_hash = record_database.get_record_and_compute_hash(self.config, section_name, record_id)
                 packed_record_id = record_database.record_id_to_url_string(record_id)
                 if volatile_hash is None:
-                    self.sync_session.delete_record_and_hash(section_name, packed_record_id)
+                    self.add_transaction('sync_session.delete_record_and_hash', section_name, packed_record_id)
                     self.local_hash_action(client_action, None, section_name, record_id)
                 else:
                     # Record got inserted or re-inserted. Update
                     # remotely rather than deleting and insert or
                     # update the local hash from the new record.
-                    self.sync_session.put_record_and_hash(section_name, packed_record_id, record_data, volatile_hash)
+                    self.add_transaction('sync_session.put_record_and_hash', section_name, packed_record_id, record_data, volatile_hash)
                     self.local_hash_action('insert-or-update-hash', volatile_hash, section_name, record_id)
+                self.execute_transaction_block()
                 counter += 1
             if counter > 0:
                 total_applied += counter
@@ -608,6 +674,7 @@ class SyncClient:
         total_applied = 0
         for section_name in reversed(self.section_names):
             # Aggregate client and server actions
+            self.start_transaction_block()
             actions_to_apply = [(record_id, actions) for record_id, actions in self.server_actions[section_name] if actions['our-action'] == 'delete']
             client_actions = []
             server_actions = []
@@ -628,11 +695,12 @@ class SyncClient:
                     client_actions.append({'action': 'insert-or-update-hash', 'id': record_id, 'hash': volatile_hash})
             # Apply server actions
             if len(server_actions) > 0:
-                self.sync_session.put_records_and_hashes_for_section(section_name, server_actions)
+                self.add_transaction('sync_session.put_records_and_hashes_for_section', section_name, server_actions)
             # Apply client actions (of which all are hash actions)
             for entry in client_actions:
                 self.local_hash_action(entry['action'], entry.get('hash'), section_name, entry['id'])
             # Update log
+            self.execute_transaction_block()
             count = len(actions_to_apply)
             if count > 0:
                 total_applied += count
