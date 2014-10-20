@@ -15,7 +15,7 @@ Required methods:
    < role: 'client' or 'server'
    < run_setup: bool
    < sync_time: datetime.datetime
-   < client_vars: user-defined-client-vars
+   < client_vars: user-defined-config-vars
    - if run_setup: sync_time will be set and client_vars might be set
    - if not run_setup: sync_time and client_vars will not be set
    > user-defined-config
@@ -47,7 +47,7 @@ Required methods:
 
   get_config_client_vars(config)
    < config: user-defined-config
-   > user-defined-client-vars
+   > user-defined-config-vars
 
   get_hash_hash(config)
    < config: user-defined-config
@@ -197,7 +197,7 @@ def __eval_sql_command(variable_name, sql, local_variables, config):
     return result
     
 
-def load_config_from_file(config_path, role, run_setup=False, sync_time=None, client_vars=None):
+def load_config_from_file(config_path, role, run_setup=False, sync_time=None, client_vars=None, server_vars=None):
     '''
     role: 'client' or 'server'
     '''
@@ -255,10 +255,14 @@ def load_config_from_file(config_path, role, run_setup=False, sync_time=None, cl
     # Run setup
     if run_setup:
         config['sync:main']['sync_time'] = sync_time
-        if client_vars is None:
-            client_vars = {}
-        else:
-            client_vars = dict([(k, __json_to_struct(v)) for k, v in client_vars.iteritems()])
+        # De-json-ify client and server vars
+        config_vars = [client_vars, server_vars]
+        for i in [0, 1]:
+            if config_vars[i] is None:
+                config_vars[i] = {}
+            else:
+                config_vars[i] = dict([(k, __json_to_struct(v)) for k, v in config_vars[i].iteritems()])
+        client_vars, server_vars = config_vars
         commands = config.get('sync:setup')
         config['_setup'] = __setup_local_variables(config)
         if role == 'client':
@@ -269,6 +273,8 @@ def load_config_from_file(config_path, role, run_setup=False, sync_time=None, cl
             for variable, command in commands:
                 if (role == 'server') and (variable in client_vars.keys()):
                     config['_setup'][variable] = client_vars[variable]
+                elif (role == 'client') and (variable in server_vars.keys()):
+                    config['_setup'][variable] = server_vars[variable]
                 else:
                     __eval_python_command(variable, command, config)
         if role == 'client':
@@ -279,7 +285,7 @@ def load_config_from_file(config_path, role, run_setup=False, sync_time=None, cl
     return config
 
 
-def load_config_from_name(sync_name, role, run_setup=False, sync_time=None, client_vars=None):
+def load_config_from_name(sync_name, role, run_setup=False, sync_time=None, client_vars=None, server_vars=None):
     '''
     role: 'client' or 'server'
     '''
@@ -338,6 +344,10 @@ def get_config_sync_time(config):
 
 def get_config_client_vars(config):
     return dict([(key, __struct_to_json(config['_setup'][key])) for key in config['_client_vars']])
+
+
+def get_config_server_vars(config):
+    return dict([(key, __struct_to_json(config['_setup'][key])) for key in config['_server_vars']])
 
 
 def __pack_record_id_values(values):
