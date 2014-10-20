@@ -128,14 +128,22 @@ class SyncClient:
                             output += '%s.%s%s: %4i, ' % (role[0], action[0], 'h' if action[-5:] == '-hash' else 't', action_count[action])
                 self.log_to_console(output)
 
+    def load_transactions(self):
+        if self.transactions is not None:
+            raise ValueError("Loading transactions from file while another block is still open")
+        from ast import literal_eval
+        with open(TRANSACTIONS_FILENAME, 'rt') as fp:
+            transactions = [literal_eval(line) for line in fp.read().strip().split('\n')]
+        if len(transactions) > 0:
+            self.transactions = transactions
+
     def start_transaction_block(self):
         if self.transactions is not None:
             raise ValueError("Starting a new transaction block while the previous one has not been emptied")
-        else:
-            # Truncate transactions file
-            self.transactions = []
-            with open(TRANSACTIONS_FILENAME, 'wt') as fp:
-                pass
+        # Truncate transactions file
+        self.transactions = []
+        with open(TRANSACTIONS_FILENAME, 'wt') as fp:
+            pass
 
     def add_transaction(self, method, *args, **kwargs):
         if self.transactions is None:
