@@ -24,7 +24,7 @@ if __name__ == '__main__':
             sync_client.log_to_console('No unfinished transactions found: refusing to synchronise.')
             sys.exit(-1)
         sync_client.log_to_console('Found unfinished transactions: completing them now.')
-        sync_client.execute_transactions()
+        sync_client.execute_transaction_block()
         try:
             sync_client.check_hash_consistency()
         except HashError:
@@ -35,7 +35,7 @@ if __name__ == '__main__':
     sync_client.compute_actions()
 
     # Apply local and remote sync actions
-    for method in [sync_client.apply_hash_actions, sync_client.apply_local_inserts_batch, sync_client.apply_local_updates_batch, sync_client.apply_local_deletes_batch, sync_client.apply_remote_inserts_batch, sync_client.apply_remote_updates_batch, sync_client.apply_remote_deletes_batch]:
+    for method in [sync_client.apply_hash_actions, sync_client.apply_local_inserts, sync_client.apply_local_updates, sync_client.apply_local_deletes, sync_client.apply_remote_inserts, sync_client.apply_remote_updates, sync_client.apply_remote_deletes]:
         try:
             method(do_hash_check=True)
         except HashError:
