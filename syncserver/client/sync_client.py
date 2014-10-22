@@ -133,10 +133,15 @@ class SyncClient:
         if self.transactions is not None:
             raise ValueError("Loading transactions from file while another block is still open")
         from ast import literal_eval
-        with open(TRANSACTIONS_FILENAME, 'rt') as fp:
+        try:
+            fp = open(TRANSACTIONS_FILENAME, 'rt')
+        except IOError:
+            pass
+        else:
             transactions = [literal_eval(line) for line in fp.read().strip().split('\n')]
-        if len(transactions) > 0:
-            self.transactions = transactions
+            fp.close()
+            if len(transactions) > 0:
+                self.transactions = transactions
 
     def start_transaction_block(self):
         if self.transactions is not None:
