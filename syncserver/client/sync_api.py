@@ -57,6 +57,11 @@ class SyncSession:
                 message = None
             raise UnhandledResponse(response.status_code, message)
 
+    def __random_failure(self):
+        import random
+        if random.uniform(0, 1) < 0.5:
+            raise requests.ConnectionError("Simulated connection error")
+
     def get_hash_hash(self):
         response = requests.get(
             urlparse.urljoin(self.host_uri, '/%s/hash-hash' % (self.sync_name)),
@@ -76,6 +81,7 @@ class SyncSession:
         return json.loads(response.content)['hash_actions']
 
     def get_record(self, section_name, record_id):
+        self.__random_failure()
         response = requests.get(
             urlparse.urljoin(self.host_uri, '/%s/%s/%s/record' % (self.sync_name, section_name, record_id)),
             **self.request_params)
@@ -86,6 +92,7 @@ class SyncSession:
             return None
 
     def get_records_for_section(self, section_name, record_ids):
+        self.__random_failure()
         response = requests.get(
             urlparse.urljoin(self.host_uri, '/%s/%s/records' % (self.sync_name, section_name)),
             data=json.dumps({
@@ -95,32 +102,39 @@ class SyncSession:
         return json.loads(response.content)['records']
 
     def put_record(self, section_name, record_id, record):
+        self.__random_failure()
         response = requests.put(
             urlparse.urljoin(self.host_uri, '/%s/%s/%s/record' % (self.sync_name, section_name, record_id)),
             data=json.dumps({
                 'lock_key': self.lock_key,
                 'record': record}),
             **self.request_params)
+        self.__random_failure()
         self.__handle_unexpected_status_codes(response)
 
     def delete_record(self, section_name, record_id):
+        self.__random_failure()
         response = requests.delete(
             urlparse.urljoin(self.host_uri, '/%s/%s/%s/record' % (self.sync_name, section_name, record_id)),
             data=json.dumps({
                 'lock_key': self.lock_key}),
             **self.request_params)
+        self.__random_failure()
         self.__handle_unexpected_status_codes(response)
 
     def put_records_for_section(self, section_name, actions):
+        self.__random_failure()
         response = requests.put(
             urlparse.urljoin(self.host_uri, '/%s/%s/records' % (self.sync_name, section_name)),
             data=json.dumps({
                 'lock_key': self.lock_key,
                 'actions': actions}),
             **self.request_params)
+        self.__random_failure()
         self.__handle_unexpected_status_codes(response)
 
     def get_hash(self, section_name, record_id):
+        self.__random_failure()
         response = requests.get(
             urlparse.urljoin(self.host_uri, '/%s/%s/%s/hash' % (self.sync_name, section_name, record_id)),
             **self.request_params)
@@ -131,32 +145,39 @@ class SyncSession:
             return None
 
     def put_hash(self, section_name, record_id, hash):
+        self.__random_failure()
         response = requests.put(
             urlparse.urljoin(self.host_uri, '/%s/%s/%s/hash' % (self.sync_name, section_name, record_id)),
             data=json.dumps({
                 'lock_key': self.lock_key,
                 'hash': hash}),
             **self.request_params)
+        self.__random_failure()
         self.__handle_unexpected_status_codes(response)
 
     def delete_hash(self, section_name, record_id):
+        self.__random_failure()
         response = requests.delete(
             urlparse.urljoin(self.host_uri, '/%s/%s/%s/hash' % (self.sync_name, section_name, record_id)),
             data=json.dumps({
                 'lock_key': self.lock_key}),
             **self.request_params)
+        self.__random_failure()
         self.__handle_unexpected_status_codes(response)
 
     def put_hashes_for_section(self, section_name, actions):
+        self.__random_failure()
         response = requests.put(
             urlparse.urljoin(self.host_uri, '/%s/%s/hashes' % (self.sync_name, section_name)),
             data=json.dumps({
                 'lock_key': self.lock_key,
                 'actions': actions}),
             **self.request_params)
+        self.__random_failure()
         self.__handle_unexpected_status_codes(response)
 
     def get_record_and_hash(self, section_name, record_id):
+        self.__random_failure()
         response = requests.get(
             urlparse.urljoin(self.host_uri, '/%s/%s/%s/record-hash' % (self.sync_name, section_name, record_id)),
             **self.request_params)
@@ -167,6 +188,7 @@ class SyncSession:
             return None, None
 
     def put_record_and_hash(self, section_name, record_id, record, hash):
+        self.__random_failure()
         response = requests.put(
             urlparse.urljoin(self.host_uri, '/%s/%s/%s/record-hash' % (self.sync_name, section_name, record_id)),
             data=json.dumps({
@@ -174,21 +196,26 @@ class SyncSession:
                 'record': record,
                 'hash': hash}),
             **self.request_params)
+        self.__random_failure()
         self.__handle_unexpected_status_codes(response)
 
     def delete_record_and_hash(self, section_name, record_id):
+        self.__random_failure()
         response = requests.delete(
             urlparse.urljoin(self.host_uri, '/%s/%s/%s/record-hash' % (self.sync_name, section_name, record_id)),
             data=json.dumps({
                 'lock_key': self.lock_key}),
             **self.request_params)
+        self.__random_failure()
         self.__handle_unexpected_status_codes(response)
 
     def put_records_and_hashes_for_section(self, section_name, actions):
+        self.__random_failure()
         response = requests.put(
             urlparse.urljoin(self.host_uri, '/%s/%s/record-hashes' % (self.sync_name, section_name)),
             data=json.dumps({
                 'lock_key': self.lock_key,
                 'actions': actions}),
             **self.request_params)
+        self.__random_failure()
         self.__handle_unexpected_status_codes(response)
