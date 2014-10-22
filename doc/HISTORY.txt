@@ -1,7 +1,17 @@
 Changelog
 =========
 
-0.0.0
------
+1.1
+---
+
+- Implemented temporary transaction store for robustness to network
+  failures. On a hash-hash mismatch between client and server, the
+  client will apply any left over transactions, which should restore
+  client and server to a consistent state.
+
+1.0
+---
 
 - Initial release
+- Synchronisation server and client supporting batch or single item
+  updates
