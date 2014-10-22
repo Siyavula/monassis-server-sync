@@ -19,13 +19,14 @@ class UnhandledResponse(SyncException):
 
 
 class SyncSession:
-    def __init__(self, sync_name, host_uri, sync_time, auth=None, verify=True):
+    def __init__(self, sync_name, host_uri, sync_time, auth=None, verify=True, simulate_network_errors=False):
         self.sync_name = sync_name
         self.host_uri = host_uri
         self.request_params = {
             'auth': auth,
             'verify': verify,
         }
+        self.simulate_network_errors = simulate_network_errors
 
         # Obtain lock
         self.lock_key = None
@@ -58,9 +59,10 @@ class SyncSession:
             raise UnhandledResponse(response.status_code, message)
 
     def __random_failure(self):
-        import random
-        if random.uniform(0, 1) < 0.5:
-            raise requests.ConnectionError("Simulated connection error")
+        if self.simulate_network_errors:
+            import random
+            if random.uniform(0, 1) < 0.5:
+                raise requests.ConnectionError("Simulated connection error")
 
     def get_hash_hash(self):
         response = requests.get(

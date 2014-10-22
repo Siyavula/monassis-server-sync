@@ -10,7 +10,7 @@ if __name__ == '__main__':
 
     # Connect to server
     try:
-        sync_client.connect_to_server()
+        sync_client.connect_to_server(simulate_network_errors=True)
     except ConnectionError:
         sys.exit(-1)
 

@@ -40,7 +40,7 @@ class SyncClient:
             self.log_file.write(string + '\n')
             self.log_file.flush()
 
-    def connect_to_server(self):
+    def connect_to_server(self, simulate_network_errors=False):
         connected = False
         attempts = 0
         while not connected and (attempts < self.max_connection_attempts):
@@ -48,7 +48,8 @@ class SyncClient:
                 self.sync_session = sync_api.SyncSession(
                     record_database.get_config_sync_name(self.config),
                     record_database.get_config_sync_url(self.config),
-                    record_database.get_config_sync_time(self.config))
+                    record_database.get_config_sync_time(self.config),
+                    simulate_network_errors=simulate_network_errors)
                 connected = True
             except sync_api.DatabaseLocked:
                 import time
