@@ -1,0 +1,6 @@
+client/state.pickle
+client/*.err
+client/*.out
+server/test_server.log
+server/pyramid.log
+server/pyramid.pid
