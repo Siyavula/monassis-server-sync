@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.3
+---
+
+- Use batches to speed up synchronisation.
+
 1.2
 ---
 
