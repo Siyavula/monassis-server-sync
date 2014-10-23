@@ -1,6 +1,11 @@
 Changelog
 =========
 
+1.2
+---
+
+- Fixed use of id columns, to allowed indexed searches.
+
 1.1
 ---
 
