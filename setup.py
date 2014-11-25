@@ -23,7 +23,7 @@ requires = [
     ]
 
 setup(name='syncserver',
-      version='1.1',
+      version='1.3',
       description='Synchronisation service for the network of Monassis instances',
       long_description=README,
       classifiers=[

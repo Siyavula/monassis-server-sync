@@ -1,0 +1,43 @@
+#!/bin/bash
+
+### BEGIN INIT INFO
+# Provides:          sync_server_qa
+# Required-Start:    $local_fs $remote_fs $network $syslog
+# Required-Stop:     $local_fs $remote_fs $network $syslog
+# Should-Start:      $named
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Monassis Synchronisation Server
+# Description:       Monassis Synchronisation Server
+### END INIT INFO
+
+SRVUSER="monassis"
+HOME="/home/monassis/monassis-sync-server-qa-templates"
+PSERVE="env/bin/pserve"
+INIFILE="qa-templates-sync-network.ini"
+LOGFILE="init-scripts/monassis-sync-server.log"
+PIDFILE="init-scripts/monassis-sync-server.pid"
+
+. /lib/lsb/init-functions
+
+startserver() {
+    start-stop-daemon --start --chuid ${SRVUSER} \
+        --chdir "$HOME" --pidfile "$HOME/$PIDFILE" --startas "$HOME/$PSERVE" -- \
+        --daemon --pid-file="$HOME/$PIDFILE" --log-file="$HOME/$LOGFILE" "$INIFILE"
+}
+
+stopserver() {
+    start-stop-daemon --stop --chuid ${SRVUSER} --pidfile "$HOME/$PIDFILE"
+}
+
+case "$1" in
+    start|'')
+        startserver
+        ;;
+    stop)
+        stopserver
+        ;;
+    status)
+        status_of_proc -p "$HOME/$PIDFILE" $HOME/$PSERVE "Sync server"
+esac
+exit 0
