@@ -6,9 +6,9 @@ Synchronisation service for the network of Monassis instances.
 Development
 -----------
 
- * Setup a virtualenv: ``virtualenv --no-site-packages env``
- * Activate it: ``source env/bin/activate``
- * ``python setup.py develop``
+ * Setup a virtualenv: ``virtualenv venv``
+ * Activate it: ``source venv/bin/activate``
+ * Install requirements into it: ``pip install -r requirements.txt``
  * ``initialize_db development.ini``
  * ``pserve development.ini --reload``
 
@@ -32,14 +32,12 @@ The API uses HTTP basic authentication and must be accessed over SSL:
  * username: syncserver
  * password: BCMe7crxG-z_Wk_
 
-The SSL certificate is self-signed, so a browser will complain that it
-doesn't look legitimate.  That's okay, we're only using it to secure
-the communication, not verify each party.
+The SSL certificate is self-signed, so a browser will complain that it doesn't look legitimate.
+That's okay, we're only using it to secure the communication, not verify each party.
 
-The recommended production setup is to use a combination of nginx and
-gunicorn. Nginx is the frontend and handles badly behaved clients, SSL
-and HTTP Basic authentication. It proxies requests to a collection of
-gunicorn servers on the local host.
+The recommended production setup is to use a combination of nginx and gunicorn. Nginx is the
+frontend and handles badly behaved clients, SSL and HTTP Basic authentication. It proxies requests
+to a collection of gunicorn servers on the local host.
 
 Setup
 -----

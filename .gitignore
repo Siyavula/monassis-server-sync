@@ -5,3 +5,4 @@ env
 *.sqlite
 log
 .sync_transactions
+venv/
