@@ -5,10 +5,7 @@ from pyramid.view import view_config
 import logging
 log = logging.getLogger(__name__)
 
-from .models import (
-    Lock,
-    LockError,
-)
+from .models import Lock, LockError
 
 from syncserver.errors import DatabaseLocked
 from syncserver import utils
@@ -34,7 +31,8 @@ def lock_view(request):
     except LockError:
         raise DatabaseLocked("The database is already locked by someone else")
     print 'Sync time:', repr(sync_time)
-    config = record_database.load_config_from_name(sync_name, 'server', run_setup=True, sync_time=sync_time)
+    config = record_database.load_config_from_name(
+        sync_name, 'server', run_setup=True, sync_time=sync_time)
     return {
         'lock_key': key,
         'server_vars': record_database.get_config_server_vars(config),
@@ -74,8 +72,11 @@ def get_hash_hash_view(request):
 def get_hash_actions_view(request):
     '''
     GET /{name}/hash-actions
-        < {'lock_key': string, 'sync_time': iso8601, 'client_vars': user-defined-config-vars (optional)}
-        > {'hash_actions': {section_name (string): [[user-defined-record-id, ['insert', user-defined-hash] or ['update', user-defined-hash, user-defined-hash] or ['delete', user-defined-hash]]]}}
+        < {'lock_key': string, 'sync_time': iso8601, 'client_vars': user-
+            defined-config-vars (optional)}
+        > {'hash_actions': {section_name (string): [[user-defined-record-id,
+            ['insert', user-defined-hash] or ['update', user-defined-hash, user-defined-hash] or
+            ['delete', user-defined-hash]]]}}
         > raises 400: HTTPBadRequest
         > raises 423: DatabaseLocked
     '''
@@ -89,7 +90,8 @@ def get_hash_actions_view(request):
     except ValueError:
         raise HTTPBadRequest("Bad sync_time format")
     client_vars = request.json_body.get('client_vars')
-    config = record_database.load_config_from_name(sync_name, 'server', run_setup=True, sync_time=sync_time, client_vars=client_vars)
+    config = record_database.load_config_from_name(
+        sync_name, 'server', run_setup=True, sync_time=sync_time, client_vars=client_vars)
     hash_actions = record_database.get_hash_actions(config)
     return {'hash_actions': hash_actions}
 
@@ -122,9 +124,11 @@ def get_records_for_section_view(request):
     '''
     sync_name = request.matchdict['name']
     section_name = request.matchdict['section']
-    record_ids = [record_database.url_string_to_record_id(x) for x in request.json_body.get('record_ids', [])]
+    record_ids = [record_database.url_string_to_record_id(x) for x
+                  in request.json_body.get('record_ids', [])]
     config = record_database.load_config_from_name(sync_name, 'server')
-    records = [record_database.get_record(config, section_name, record_id) for record_id in record_ids]
+    records = [record_database.get_record(config, section_name, record_id) for record_id
+               in record_ids]
     if None in records:
         raise NotFound
     return {'records': records}

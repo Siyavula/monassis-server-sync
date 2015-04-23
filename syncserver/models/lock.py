@@ -1,10 +1,4 @@
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    DateTime,
-    event,
-    )
+from sqlalchemy import Column, DateTime, event, Integer, String
 from sqlalchemy.exc import IntegrityError
 import transaction
 
@@ -22,7 +16,9 @@ class Lock(Base):
     __tablename__ = "lock"
 
     sync_name = Column(String, nullable=False)
-    key = Column(String, nullable=False, primary_key=True) # SqlAlchemy ORM needs a primary key specified even if the table doesn't have one.
+
+    # SqlAlchemy ORM needs a primary key specified even if the table doesn't have one.
+    key = Column(String, nullable=False, primary_key=True)
     locked_at = Column(DateTime(timezone=True), nullable=False)
     last_accessed_at = Column(DateTime(timezone=True), nullable=False)
 
@@ -30,7 +26,6 @@ class Lock(Base):
     # This solves concurrency issues by never allowing more than one
     # row in the table.
     keep_unique = Column(Integer, unique=True, nullable=False, default=0)
-
 
     def __json__(self, request):
         return {
@@ -40,10 +35,8 @@ class Lock(Base):
             'last_accessed_at': self.last_accessed_at.isoformat(),
         }
 
-
     def __str__(self):
-        return "<Lock by=%s, since=%s>"%(self.sync_name, self.locked_at.isoformat())
-
+        return "<Lock by=%s, since=%s>" % (self.sync_name, self.locked_at.isoformat())
 
     @classmethod
     def obtain_lock(cls, sync_name):
@@ -67,10 +60,9 @@ class Lock(Base):
             DBSession.add(lock)
             transaction.commit()
         except IntegrityError:
-            raise LockError, "Already locked"
+            raise LockError("Already locked")
         else:
             return key
-
 
     @classmethod
     def test_lock(cls, sync_name, key):
@@ -83,15 +75,13 @@ class Lock(Base):
         else:
             return False
 
-
     @classmethod
     def release_lock(cls, sync_name, key):
         if not Lock.test_lock(sync_name, key):
-            raise LockError, "You do not have lock"
+            raise LockError("You do not have lock")
         else:
             DBSession.query(Lock).delete()
             transaction.commit()
-
 
     @classmethod
     def loaded(cls, target, context):

@@ -1,6 +1,6 @@
 import json
 
-from pyramid.httpexceptions import HTTPBadRequest, HTTPLocked
+from pyramid.httpexceptions import HTTPLocked
 from pyramid.threadlocal import get_current_request
 
 

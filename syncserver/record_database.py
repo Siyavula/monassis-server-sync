@@ -195,7 +195,7 @@ def __eval_sql_command(variable_name, sql, local_variables, config):
     from sqlalchemy.sql import text
     result = connection.execute(text(sql), local_variables)
     return result
-    
+
 
 def load_config_from_file(config_path, role, run_setup=False, sync_time=None, client_vars=None, server_vars=None):
     '''

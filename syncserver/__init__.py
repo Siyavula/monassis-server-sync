@@ -36,10 +36,15 @@ def setup_routes(config):
     config.add_route('put_hash', '/{name}/{section}/{id}/hash', request_method='PUT')
     config.add_route('delete_hash', '/{name}/{section}/{id}/hash', request_method='DELETE')
     config.add_route('put_hashes_for_section', '/{name}/{section}/hashes', request_method='PUT')
-    config.add_route('get_record_and_hash', '/{name}/{section}/{id}/record-hash', request_method='GET')
-    config.add_route('put_record_and_hash', '/{name}/{section}/{id}/record-hash', request_method='PUT')
-    config.add_route('delete_record_and_hash', '/{name}/{section}/{id}/record-hash', request_method='DELETE')
-    config.add_route('put_records_and_hashes_for_section', '/{name}/{section}/record-hashes', request_method='PUT')
+    config.add_route(
+        'get_record_and_hash', '/{name}/{section}/{id}/record-hash', request_method='GET')
+    config.add_route(
+        'put_record_and_hash', '/{name}/{section}/{id}/record-hash', request_method='PUT')
+    config.add_route(
+        'delete_record_and_hash', '/{name}/{section}/{id}/record-hash', request_method='DELETE')
+    config.add_route(
+        'put_records_and_hashes_for_section', '/{name}/{section}/record-hashes',
+        request_method='PUT')
     config.add_route('server_status', '/server_status', request_method='GET')
 
 
@@ -67,14 +72,17 @@ def setup_logging():
         handler.addFilter(syncserver.requests.RequestIdFilter())
         # force the formatter to use a request id
         if handler.formatter:
-            setattr(handler.formatter, '_fmt', '%(asctime)s %(levelname)-5.5s [%(requestid)s] [%(process)d] [%(name)s][%(threadName)s] %(message)s')
+            setattr(
+                handler.formatter, '_fmt', (
+                    '%(asctime)s %(levelname)-5.5s [%(requestid)s] [%(process)d] '
+                    '[%(name)s][%(threadName)s] %(message)s'))
 
 
 def setup_newrelic(settings):
     """ If +env+ is not None, setup newrelic and tell
     it to use that environment config. """
     env = settings.get('newrelic.environment')
-    iniFile = settings.get('newrelic.ini')
-    if env and iniFile:
+    ini_file = settings.get('newrelic.ini')
+    if env and ini_file:
         import newrelic.agent
-        newrelic.agent.initialize(iniFile, env)
+        newrelic.agent.initialize(ini_file, env)
