@@ -8,12 +8,14 @@ import uuid
 
 from json import dumps
 
-from syncserver.utils import now_utc 
+from syncserver.utils import now_utc
+
 
 @subscriber(NewRequest)
 def add_request_id(event):
     """ Add a request id to all requests.  """
     event.request.request_id = str(uuid.uuid4())
+
 
 @subscriber(NewResponse)
 def response_request_id(event):
@@ -26,7 +28,7 @@ def render_request_id(event):
     """ Add request id to JSON responses. """
     if isinstance(event.rendering_val, dict):
         event.rendering_val['request_id'] = get_current_request().request_id
-    
+
 
 class RequestIdFilter(logging.Filter):
     """
@@ -41,6 +43,7 @@ class RequestIdFilter(logging.Filter):
             record.requestid = req.request_id
 
         return record
+
 
 def log_request(message, **kwargs):
     """
@@ -59,8 +62,7 @@ def log_request(message, **kwargs):
         "request_id": request.request_id,
         "remote_addr": request.remote_addr,
         "forwarded_for": request.headers.get('x-forwarded-for'),
-        "ts": now_utc().isoformat(),
-        }
+        "ts": now_utc().isoformat()}
     info.update(kwargs)
 
     log.info("REQUEST %s <> %s" % (message, dumps(info)))

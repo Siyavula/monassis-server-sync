@@ -1,7 +1,6 @@
 import datetime
 from dateutil.parser import parse
 from dateutil.tz import tzutc
-from uuid import UUID
 
 
 def parse_iso8601(s, field=None):
@@ -45,9 +44,10 @@ def force_utc(dt):
         return dt
 
 
-def __sync_master_slave_or_parent_child(master_hash_actions, slave_hash_actions, is_master_slave):
+def _sync_master_slave_or_parent_child(master_hash_actions, slave_hash_actions, is_master_slave):
     '''
-    hash_actions: { record_id: ('insert', new_hash) or ('update', old_hash, new_hash) or ('delete', old_hash) }
+    hash_actions: { record_id: ('insert', new_hash) or ('update', old_hash, new_hash) or
+                               ('delete', old_hash) }
     > { record_id: {'our-action', 'their-action', 'old-hash', 'new-hash'} }
     '''
     master_action_idents = set(master_hash_actions.keys())
@@ -79,7 +79,8 @@ def __sync_master_slave_or_parent_child(master_hash_actions, slave_hash_actions,
     if is_master_slave:
         for ident in slave_action_idents - master_action_idents:
             slave_action = slave_hash_actions[ident]
-            entry = {'our-action': {'insert': 'delete', 'update': 'update', 'delete': 'insert'}[slave_action[0]]}
+            entry = {'our-action': {'insert': 'delete', 'update': 'update', 'delete': 'insert'}[
+                slave_action[0]]}
             if slave_action[0] == 'insert':          # Note: hash checking for volatile
                 entry['old-hash'] = slave_action[1]  # slaves should really not be
             elif slave_action[0] == 'update':        # necessary since it still needs
@@ -117,7 +118,10 @@ def __sync_master_slave_or_parent_child(master_hash_actions, slave_hash_actions,
                 'update': {'update': 'update', 'delete': 'insert'},
                 'delete': {'update': 'delete'},
             }[master_action[0]].get(slave_action[0])
-            assert action is not None, "Weird inconsistency between master and slave actions (ident: %s, master: %s, slave: %s)"%(repr(ident), repr(master_hash_actions[ident], slave_hash_actions[ident]))
+            assert action is not None, (
+                "Weird inconsistency between master and slave actions (ident: %s, "
+                "master: %s, slave: %s)" % (
+                    repr(ident), repr(master_hash_actions[ident], slave_hash_actions[ident])))
             entry = {
                 'our-action': action,
                 'their-action': master_action[0] + '-hash',
@@ -155,22 +159,28 @@ def __sync_master_slave_or_parent_child(master_hash_actions, slave_hash_actions,
 
 
 def sync_master_slave(master_hash_actions, slave_hash_actions):
-    return __sync_master_slave_or_parent_child(master_hash_actions, slave_hash_actions, is_master_slave=True)
+    return _sync_master_slave_or_parent_child(
+        master_hash_actions, slave_hash_actions, is_master_slave=True)
 
 
 def sync_parent_child(parent_hash_actions, child_hash_actions):
-    return __sync_master_slave_or_parent_child(parent_hash_actions, child_hash_actions, is_master_slave=False)
+    return _sync_master_slave_or_parent_child(
+        parent_hash_actions, child_hash_actions, is_master_slave=False)
 
 
 def sync_on_strategy(merge_strategy, our_hash_actions, their_hash_actions):
     if merge_strategy == 'master':
-        our_data_actions, their_data_actions = sync_master_slave(our_hash_actions, their_hash_actions)
+        our_data_actions, their_data_actions = sync_master_slave(
+            our_hash_actions, their_hash_actions)
     elif merge_strategy == 'slave':
-        their_data_actions, our_data_actions = sync_master_slave(their_hash_actions, our_hash_actions)
+        their_data_actions, our_data_actions = sync_master_slave(
+            their_hash_actions, our_hash_actions)
     elif merge_strategy == 'parent':
-        our_data_actions, their_data_actions = sync_parent_child(our_hash_actions, their_hash_actions)
+        our_data_actions, their_data_actions = sync_parent_child(
+            our_hash_actions, their_hash_actions)
     elif merge_strategy == 'child':
-        their_data_actions, our_data_actions = sync_parent_child(their_hash_actions, our_hash_actions)
+        their_data_actions, our_data_actions = sync_parent_child(
+            their_hash_actions, our_hash_actions)
     else:
-        ValueError, "Unknown merge strategy: %s"%(repr(merge_strategy))
+        ValueError, "Unknown merge strategy: %s" % (repr(merge_strategy))
     return our_data_actions, their_data_actions

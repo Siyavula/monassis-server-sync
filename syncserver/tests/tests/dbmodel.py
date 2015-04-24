@@ -2,10 +2,11 @@ import sqlalchemy
 
 DB_VERSION = '1.0'
 
+
 def create(**columns):
     global tables
     return tables['records'].insert().values(**columns).execute().inserted_primary_key[0]
-        
+
 
 def read(id):
     global db, tables
@@ -14,7 +15,7 @@ def read(id):
     row = result.fetchone()
     result.close()
     return row
-        
+
 
 def update(id, **columns):
     global tables
