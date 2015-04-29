@@ -73,8 +73,9 @@ Then create the syncserver user and clone the repo.
 
 Setup the environment:
 
-- ``virtualenv --no-site-packages env``
-- ``source env/bin/activate``
+- ``virtualenv venv``
+- ``source venv/bin/activate``
+- ``pip install -r requirements.txt``
 - ``python setup.py develop``
 
 If this is the first time the database has been setup, run:
