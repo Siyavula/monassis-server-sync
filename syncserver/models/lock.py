@@ -5,6 +5,7 @@ import transaction
 from syncserver.models.support import Base, DBSession
 from syncserver.utils import now_utc, force_utc
 
+from datetime import timedelta
 from uuid import uuid4
 
 
@@ -40,7 +41,6 @@ class Lock(Base):
 
     @classmethod
     def obtain_lock(cls, sync_name):
-        from datetime import timedelta
         now = now_utc()
 
         # Clear timed out lock (if any)
@@ -50,7 +50,7 @@ class Lock(Base):
         # Set up new lock
         key = str(uuid4())
         lock = Lock()
-        lock.sync_name = sync_name
+        lock.sync_name = str(sync_name)
         lock.key = key
         lock.locked_at = now
         lock.last_accessed_at = now

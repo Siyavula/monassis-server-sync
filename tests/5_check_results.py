@@ -1,8 +1,11 @@
-import os, sys
+import os
+import sys
 import ConfigParser
+
 from syncserver.tests import dbmodel
 
 test_name = sys.argv[1]
+
 
 # Test databases
 for role in ['client', 'server']:
@@ -35,13 +38,17 @@ for role in ['client', 'server']:
                 e = expected_records[len(actual_records)]
                 a = None
 
-        assert expected_records == actual_records, '%s: expected = %s, actual = %s'%(role, repr(e), repr(a))
+        assert expected_records == actual_records, '{}: expected = {}, actual = {}'.format(
+            role, repr(e), repr(a))
 
-    # {'sync_name': '__test__', 'section_name': 'records', 'record_id': '1,', 'record_hash': 'a3b48eba3d1b7a709f6d47a9de10c523'},
+    # {'sync_name': '__test__', 'section_name': 'records', 'record_id': '1,',
+    #  'record_hash': 'a3b48eba3d1b7a709f6d47a9de10c523'},
     expected_record_hashes = [tuple(row.items()) for row in data.get('record_hashes', [])]
     expected_record_hashes.sort()
 
-    select = dbmodel.sqlalchemy.sql.select([dbmodel.tables['record_hashes'].c[column] for column in ['sync_name', 'section_name', 'record_id', 'record_hash']])
+    select = dbmodel.sqlalchemy.sql.select(
+        [dbmodel.tables['record_hashes'].c[column]
+         for column in ['sync_name', 'section_name', 'record_id', 'record_hash']])
     actual_record_hashes = [tuple(dict(row).items()) for row in dbmodel.db.execute(select)]
     actual_record_hashes.sort()
 
@@ -59,15 +66,18 @@ for role in ['client', 'server']:
                 e = expected_record_hashes[len(actual_record_hashes)]
                 a = None
 
-        assert expected_record_hashes == actual_record_hashes, '%s: expected = %s, actual = %s'%(role, repr(e), repr(a))
+        assert expected_record_hashes == actual_record_hashes, (
+            '{}: expected = {}, actual = {}'.format(role, repr(e), repr(a)))
 
 # Test log files
 for phase in ['compute', 'apply']:
     for log in ['err', 'out']:
-        expected_log = open(os.path.join(test_name, '5_client_' + phase + '_actions.' + log), 'rt').read()
-        actual_log = open(os.path.join('client', 'client_' + phase + '_actions.' + log), 'rt').read()
+        expected_log = open(
+            os.path.join(test_name, '5_client_' + phase + '_actions.' + log), 'rt').read()
+        actual_log = open(
+            os.path.join('client', 'client_' + phase + '_actions.' + log), 'rt').read()
         if log == 'out':
             # Strip sync time
-            expected_log = expected_log[expected_log.find('\n')+1:]
-            actual_log = actual_log[actual_log.find('\n')+1:]
-        assert expected_log == actual_log, 'Log mismatch for (%s, %s)'%(phase, log)
+            expected_log = expected_log[expected_log.find('\n') + 1:]
+            actual_log = actual_log[actual_log.find('\n') + 1:]
+        assert expected_log == actual_log, 'Log mismatch for ({}, {})'.format(phase, log)

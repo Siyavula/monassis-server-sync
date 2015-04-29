@@ -1,5 +1,7 @@
+import cPickle
 import sys
-from syncserver.client import SyncClient, ConnectionError, HashError
+
+from syncserver.client import SyncClient
 from syncserver import utils
 
 # Load config
@@ -18,7 +20,6 @@ sync_client.compute_actions()
 
 # Write state to file
 sync_client.log_to_console('Writing state to file')
-import cPickle
 state = {
     'client_actions': sync_client.client_actions,
     'server_actions': sync_client.server_actions,

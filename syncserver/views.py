@@ -21,16 +21,20 @@ def lock_view(request):
         > raises 423: DatabaseLocked
     '''
     sync_name = request.matchdict['name']
+
     sync_time = request.json_body.get('sync_time')
     try:
         sync_time = utils.parse_iso8601(sync_time)
     except ValueError:
         raise HTTPBadRequest("Bad sync_time format")
+
     try:
         key = Lock.obtain_lock(sync_name)
     except LockError:
         raise DatabaseLocked("The database is already locked by someone else")
-    print 'Sync time:', repr(sync_time)
+
+    log.debug('Sync time:{}'.format(sync_time))
+
     config = record_database.load_config_from_name(
         sync_name, 'server', run_setup=True, sync_time=sync_time)
     return {
@@ -124,6 +128,7 @@ def get_records_for_section_view(request):
     '''
     sync_name = request.matchdict['name']
     section_name = request.matchdict['section']
+
     record_ids = [record_database.url_string_to_record_id(x) for x
                   in request.json_body.get('record_ids', [])]
     config = record_database.load_config_from_name(sync_name, 'server')

@@ -1,3 +1,7 @@
+import time
+
+from ast import literal_eval
+
 from syncserver import record_database, utils
 from syncserver.errors import VolatileConflict
 import sync_api
@@ -26,14 +30,11 @@ class SyncClient:
         self.sync_session = None
         self.log_file = log_file
         # Load config and adjust for client side
-        self.log_to_console('Sync time: ' + repr(sync_time))
+        self.log_to_console('Sync time: {}'.format(sync_time))
         self.config_path = config_path
         self.sync_time = sync_time
         self.config = record_database.load_config_from_file(
-            config_path,
-            'client',
-            run_setup=True,
-            sync_time=sync_time)
+            config_path, 'client', run_setup=True, sync_time=sync_time)
         self.section_names = record_database.get_config_section_names(self.config)
         self.transactions = None
 
@@ -54,23 +55,27 @@ class SyncClient:
                     simulate_network_errors=simulate_network_errors)
                 connected = True
             except sync_api.DatabaseLocked:
-                import time
                 minutes = 2 ** attempts  # Exponential back-off waiting time
-                self.log_to_console('Database locked, waiting %i minutes...' % minutes)
+                self.log_to_console('Database locked, waiting {} minutes...'.format(minutes))
                 time.sleep(60 * minutes)
                 attempts += 1
         if not connected:
-            self.log_to_console('Could not obtain database lock after max (%i) attempts' % (
+            self.log_to_console('Could not obtain database lock after max ({}) attempts'.format(
                 self.max_connection_attempts))
             raise ConnectionError()
 
     def check_hash_consistency(self):
         client_hash_hash = record_database.get_hash_hash(self.config)
         server_hash_hash = self.sync_session.get_hash_hash()
+
         if client_hash_hash != server_hash_hash:
             raise HashError("Client and server have inconsistent hash-hashes")
 
     def compute_actions(self):
+        '''
+        Determine how to synchronise the client and server databases, compute a list of actions
+        and write that action summary to the log.
+        '''
         self.log_to_console('Compute hash actions')
 
         # Update config with server variables
@@ -145,7 +150,7 @@ class SyncClient:
                         action_count[action['our-action']] += 1
                     for action in ['insert', 'update', 'delete', 'insert-hash', 'update-hash',
                                    'delete-hash']:
-                        if action_count[action] != 0:
+                        if action_count[action]:
                             output += '%s.%s%s: %4i, ' % (
                                 role[0], action[0], 'h' if action[-5:] == '-hash' else 't',
                                 action_count[action])
@@ -154,7 +159,6 @@ class SyncClient:
     def load_transactions(self):
         if self.transactions is not None:
             raise ValueError("Loading transactions from file while another block is still open")
-        from ast import literal_eval
         try:
             fp = open(TRANSACTIONS_FILENAME, 'rt')
         except IOError:
@@ -179,7 +183,7 @@ class SyncClient:
             raise ValueError(
                 "Trying to add a transaction without having started a transaction block")
         if (method != 'remote_hash_action') and (method[:method.find('.')] != 'sync_session'):
-            self.log_to_console('WARNING: Unrecognised transaction method ' + repr(method))
+            self.log_to_console('WARNING: Unrecognised transaction method: {}'.format(method))
         self.transactions.append((method, args, kwargs))
         with open(TRANSACTIONS_FILENAME, 'at') as fp:
             fp.write(repr(self.transactions[-1]) + '\n')
@@ -198,39 +202,43 @@ class SyncClient:
                     obj = getattr(obj, part)
                 obj(*args, **kwargs)
                 with open(TRANSACTIONS_FILENAME, 'rt') as fp:
-                    from ast import literal_eval
                     assert literal_eval(fp.readline().strip()) == (method, args, kwargs)
+
                 with open(TRANSACTIONS_FILENAME, 'wt') as fp:
                     for transaction in self.transactions:
-                        fp.write(repr(transaction) + '\n')
+                        fp.write('{}\n'.format(transaction))
         self.transactions = None
 
-    def remote_hash_action(self, action, hash, section_name, record_id):
+    def remote_hash_action(self, action, record_hash, section_name, record_id):
         if action is not None:
             packed_record_id = record_database.record_id_to_url_string(record_id)
             if action in ['insert-hash', 'update-hash']:
-                assert hash is not None
-                self.sync_session.put_hash(section_name, packed_record_id, hash)
+                assert record_hash is not None
+                self.sync_session.put_hash(section_name, packed_record_id, record_hash)
             else:
                 assert action == 'delete-hash'
                 self.sync_session.delete_hash(section_name, packed_record_id)
 
-    def local_hash_action(self, action, hash, section_name, record_id):
+    def local_hash_action(self, action, record_hash, section_name, record_id):
         if action == 'insert-hash':
-            assert hash is not None
-            record_database.insert_hash(self.config, section_name, record_id, hash)
+            assert record_hash is not None
+            record_database.insert_hash(self.config, section_name, record_id, record_hash)
         elif action == 'update-hash':
-            assert hash is not None
-            record_database.update_hash(self.config, section_name, record_id, hash)
+            assert record_hash is not None
+            record_database.update_hash(self.config, section_name, record_id, record_hash)
         elif action == 'insert-or-update-hash':
-            assert hash is not None
-            record_database.insert_or_update_hash(self.config, section_name, record_id, hash)
+            assert record_hash is not None
+            record_database.insert_or_update_hash(self.config, section_name, record_id, record_hash)
         elif action == 'delete-hash':
             record_database.delete_hash(self.config, section_name, record_id)
         else:
             assert action is None
 
     def apply_hash_actions(self, do_hash_check=False):
+        '''
+        Loop through all of the client- and server-actions and perform all of the 'our_action' tasks
+        ending with '-hash' (eg. 'insert-hash', 'update-hash').
+        '''
         self.log_to_console('Apply all hash actions')
         total_applied = 0
         for source in [self.client_actions, self.server_actions]:
@@ -285,10 +293,8 @@ class SyncClient:
                             self.config, section_name) in ['slave', 'child']:
                         record_database.update_record(
                             self.config, section_name, record_id, record_data)
-                # NOTE: Can't just do insert_hash() below since client
-                # might do a local insert when the client deleted a
-                # record while the server updated it under some sync
-                # strategies.
+                # NOTE: Can't just do insert_hash() below since client might do a local insert when
+                # the client deleted a record while the server updated it under some sync strategies
                 record_database.insert_or_update_hash(
                     self.config, section_name, record_id, new_hash)
                 self.execute_transaction_block()
@@ -302,25 +308,32 @@ class SyncClient:
             self.check_hash_consistency()
 
     def apply_local_inserts_batch(self, do_hash_check=False):
+        '''
+        Applies all CLIENT actions where the 'our-action' is 'insert' and resolve any conflicts
+        using the given merge-strategy.
+        '''
         self.log_to_console('Apply local inserts')
         total_applied = 0
         for section_name in self.section_names:
             # Aggregate actions
-            all_actions_to_apply = [(record_id, actions) for record_id, actions
-                                    in self.client_actions[section_name]
-                                    if actions['our-action'] == 'insert']
+            all_actions_to_apply = [
+                (record_id, actions) for record_id, actions in self.client_actions[section_name]
+                if actions['our-action'] == 'insert']
             count = 0
+
             for batch_start in xrange(0, len(all_actions_to_apply), BATCH_SIZE):
                 self.start_transaction_block()
                 actions_to_apply = all_actions_to_apply[batch_start:batch_start + BATCH_SIZE]
+
                 # Get records from server
                 packed_record_ids = [record_database.record_id_to_url_string(record_id)
                                      for record_id, actions in actions_to_apply]
-                if len(packed_record_ids) > 0:
+                if packed_record_ids:
                     records = self.sync_session.get_records_for_section(
                         section_name, packed_record_ids)
                 else:
                     records = []
+
                 # Apply actions on server
                 server_actions = []
                 for i in xrange(len(actions_to_apply)):
@@ -338,9 +351,10 @@ class SyncClient:
                         server_actions.append({'action': 'delete', 'id': packed_record_id})
                     else:
                         assert server_action is None
-                if len(server_actions) > 0:
+                if server_actions:
                     self.add_transaction(
                         'sync_session.put_hashes_for_section', section_name, server_actions)
+
                 # Apply actions on client
                 for i in xrange(len(actions_to_apply)):
                     record_id, actions = actions_to_apply[i]
@@ -415,21 +429,26 @@ class SyncClient:
             self.check_hash_consistency()
 
     def apply_local_updates_batch(self, do_hash_check=False):
+        '''
+        Applies all CLIENT actions where the 'our-action' is 'update' and resolve any conflicts
+        using the given merge-strategy.
+        '''
         self.log_to_console('Apply local updates')
         total_applied = 0
         for section_name in self.section_names:
             # Aggregate actions
-            all_actions_to_apply = [(record_id, actions) for record_id, actions
-                                    in self.client_actions[section_name]
-                                    if actions['our-action'] == 'update']
+            all_actions_to_apply = [
+                (record_id, actions) for record_id, actions in self.client_actions[section_name]
+                if actions['our-action'] == 'update']
             count = 0
+
             for batch_start in xrange(0, len(all_actions_to_apply), BATCH_SIZE):
                 self.start_transaction_block()
                 actions_to_apply = all_actions_to_apply[batch_start:batch_start + BATCH_SIZE]
                 # Get records from server
                 packed_record_ids = [record_database.record_id_to_url_string(record_id)
                                      for record_id, actions in actions_to_apply]
-                if len(packed_record_ids) > 0:
+                if packed_record_ids:
                     records = self.sync_session.get_records_for_section(
                         section_name, packed_record_ids)
                 else:
@@ -519,6 +538,10 @@ class SyncClient:
             self.check_hash_consistency()
 
     def apply_local_deletes_batch(self, do_hash_check=False):
+        '''
+        Applies all CLIENT actions where the 'our-action' is 'delete' and resolve any conflicts
+        using the given merge-strategy.
+        '''
         self.log_to_console('Apply local deletes')
         total_applied = 0
         for section_name in reversed(self.section_names):
@@ -608,13 +631,17 @@ class SyncClient:
             self.check_hash_consistency()
 
     def apply_remote_inserts_batch(self, do_hash_check=False):
+        '''
+        Applies all SERVER actions where the 'our-action' is 'insert' and resolve any conflicts
+        using the given merge-strategy.
+        '''
         self.log_to_console('Apply remote insert')
         total_applied = 0
         for section_name in self.section_names:
             # Aggregate client and server actions
-            all_actions_to_apply = [(record_id, actions) for record_id, actions
-                                    in self.server_actions[section_name]
-                                    if actions['our-action'] == 'insert']
+            all_actions_to_apply = [
+                (record_id, actions) for record_id, actions in self.server_actions[section_name]
+                if actions['our-action'] == 'insert']
             count = 0
             for batch_start in xrange(0, len(all_actions_to_apply), BATCH_SIZE):
                 self.start_transaction_block()
@@ -714,13 +741,17 @@ class SyncClient:
             self.check_hash_consistency()
 
     def apply_remote_updates_batch(self, do_hash_check=False):
+        '''
+        Applies all SERVER actions where the 'our-action' is 'update' and resolve any conflicts
+        using the given merge-strategy.
+        '''
         self.log_to_console('Apply remote updates')
         total_applied = 0
         for section_name in self.section_names:
             # Aggregate client and server actions
-            all_actions_to_apply = [(record_id, actions) for record_id, actions
-                                    in self.server_actions[section_name]
-                                    if actions['our-action'] == 'update']
+            all_actions_to_apply = [
+                (record_id, actions) for record_id, actions in self.server_actions[section_name]
+                if actions['our-action'] == 'update']
             count = 0
             for batch_start in xrange(0, len(all_actions_to_apply), BATCH_SIZE):
                 self.start_transaction_block()
@@ -813,13 +844,17 @@ class SyncClient:
             self.check_hash_consistency()
 
     def apply_remote_deletes_batch(self, do_hash_check=False):
+        '''
+        Applies all SERVER actions where the 'our-action' is 'delete' and resolve any conflicts
+        using the given merge-strategy.
+        '''
         self.log_to_console('Apply remote deletes')
         total_applied = 0
         for section_name in reversed(self.section_names):
             # Aggregate client and server actions
-            all_actions_to_apply = [(record_id, actions) for record_id, actions
-                                    in self.server_actions[section_name]
-                                    if actions['our-action'] == 'delete']
+            all_actions_to_apply = [
+                (record_id, actions) for record_id, actions in self.server_actions[section_name]
+                if actions['our-action'] == 'delete']
             count = 0
             for batch_start in xrange(0, len(all_actions_to_apply), BATCH_SIZE):
                 self.start_transaction_block()
