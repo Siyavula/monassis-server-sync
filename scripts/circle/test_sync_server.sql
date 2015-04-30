@@ -13,16 +13,16 @@ SET standard_conforming_strings = on;
 SET check_function_bodies = false;
 SET client_min_messages = warning;
 
-DROP DATABASE test_sync_server;
+DROP DATABASE IF EXISTS test_sync_server;
 --
 -- TOC entry 2278 (class 1262 OID 158453)
--- Name: test_sync_server; Type: DATABASE; Schema: -; Owner: sync_server
+-- Name: test_sync_server; Type: DATABASE; Schema: -; Owner: ubuntu
 --
 
 CREATE DATABASE test_sync_server WITH TEMPLATE = template0 ENCODING = 'UTF8' LC_COLLATE = 'en_ZA.UTF-8' LC_CTYPE = 'en_ZA.UTF-8';
 
 
-ALTER DATABASE test_sync_server OWNER TO sync_server;
+ALTER DATABASE test_sync_server OWNER TO ubuntu;
 
 \connect test_sync_server
 
