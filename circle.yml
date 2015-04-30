@@ -1,7 +1,10 @@
 machine:
     python:
         version: 2.7.6
-
+database:
+  override:
+    - psql -U ubuntu test_sync_client < ./scripts/circle/test_sync_client.sql
+    - psql -U ubuntu test_sync_server < ./scripts/circle/test_sync_server.sql
 test:
     override:
         - nosetests
