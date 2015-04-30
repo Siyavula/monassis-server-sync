@@ -3,7 +3,9 @@ machine:
         version: 2.7.6
 database:
   override:
+    - createdb test_sync_client
     - psql -U ubuntu test_sync_client < ./scripts/circle/test_sync_client.sql
+    - createdb test_sync_server
     - psql -U ubuntu test_sync_server < ./scripts/circle/test_sync_server.sql
 test:
     override:
