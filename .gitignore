@@ -3,6 +3,7 @@ env
 *.pyc
 *.egg-info
 *.sqlite
+database.cfg
 log
 .sync_transactions
 

@@ -30,6 +30,8 @@ and test_sync_server, so create these in psql. Then:
  * ``cd tests``
  * ``./run_tests.sh``
 
+Remember to copy the database.cfg.example file to database.cfg so that the nosetests can run.
+
 
 Production
 ----------

@@ -1,0 +1,5 @@
+[databases]
+nosetests = postgresql://:5432/test_sync_client
+
+[logging]
+verbose = False
