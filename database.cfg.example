@@ -1,5 +1,7 @@
 [databases]
 nosetests = postgresql://:5432/test_sync_client
+monassisdb = postgresql://:5432/monassis
+emasdb = postgresql://:5432/emas
 
 [logging]
 verbose = False

@@ -3,6 +3,7 @@ monassis-server-sync
 
 Synchronisation service for the network of Monassis instances.
 
+
 Development
 -----------
 
@@ -48,6 +49,7 @@ The recommended production setup is to use a combination of nginx and gunicorn. 
 frontend and handles badly behaved clients, SSL and HTTP Basic authentication. It proxies requests
 to a collection of gunicorn servers on the local host.
 
+
 Setup
 -----
 
@@ -84,6 +86,9 @@ If this is the first time the database has been setup, run:
 
 - ``initialize_db production.ini``
 
+Copy the database.cfg.example file to database.cfg and ensure that the values are correct.
+
+
 nginx
 -----
 
@@ -99,6 +104,7 @@ And restart nginx:
 
 ``sudo service nginx restart``
 
+
 upstart
 -------
 
@@ -111,12 +117,14 @@ And start it:
 
 ``sudo start syncserver``
 
+
 Logging
 -------
 
 nginx's production logs are in ``~syncserver/log/access.log``
 
 The syncserver application logs are in ``~syncserver/log/syncserver.log``
+
 
 Deploying changes
 -----------------
@@ -130,6 +138,7 @@ To deploy changes to the service,
 If you have made changes to the nginx config, you'll need to restart nginx too:
 
 ``sudo service nginx restart``
+
 
 IP Whitelisting
 ---------------
