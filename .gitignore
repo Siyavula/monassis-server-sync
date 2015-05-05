@@ -5,6 +5,7 @@ env
 *.sqlite
 database.cfg
 log
+pyramid.log
 .sync_transactions
 
 client/state.pickle
