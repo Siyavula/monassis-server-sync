@@ -15,15 +15,11 @@ Development
 
 To run functional and unittests, first install:
 
-  ``env/bin/pip install nose webtest``
-
-the switch to the tests branch:
-
-  ``git checkout tests``
+  ``venv/bin/pip install nose webtest``
 
 then run:
 
-  ``env/bin/nosetests``
+  ``venv/bin/nosetests``
 
 To run volatile tests, you need two databases, namely test_sync_client
 and test_sync_server, so create these in psql. Then:
@@ -63,7 +59,7 @@ First, setup the basics.
 
 Setup the postgres database:
 
-- use normal procedure here
+- use normal procedure
 - create the ``syncserver`` database and ``syncserver`` user.
 
 Then create the syncserver user and clone the repo.
