@@ -73,7 +73,6 @@ Then create the syncserver user and clone the repo.
 - ``git clone https://github.com/Siyavula/monassis-server-sync.git``
 - ``cd monassis-server-sync``
 - ``git checkout develop``
-- ``mkdir log``
 
 Setup the environment:
 

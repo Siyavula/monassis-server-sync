@@ -1,7 +1,6 @@
 beautifulsoup4==4.3.2
 blessings==1.6
 Chameleon==2.22
-gnureadline==6.3.3
 gunicorn==19.3.0
 ipdb==0.8
 ipdbplugin==1.4.2
