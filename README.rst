@@ -139,3 +139,13 @@ IP Whitelisting
 ---------------
 
 See ``resources/nginx/syncserver.conf`` for info on how to whitelist IPs.
+
+
+Conceptual Ideas
+----------------
+Linking the running app to a config file
+========================================
+The file that stores the actual syncing information is in the config folder. It has [sync:main] and
+a whole bunch of [section:] tags that will be used by the code to know what tables and fields to use
+when syncing data. This file is coupled to the running app ini file by virtue of the upstart config
+in init-scripts where the INIFILE setting points to the config file to use.
