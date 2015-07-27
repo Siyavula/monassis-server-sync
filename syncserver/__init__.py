@@ -8,13 +8,14 @@ def main(global_config, **settings):
     # This must be done before new relic
     setup_logging()
 
-    # This should be done before any pyramid imports if possible,
-    # certainly before make_wsgi_app()
+    # This should be done before any pyramid imports if possible, certainly before make_wsgi_app()
     setup_newrelic(settings)
     setup_database(settings)
 
     from pyramid.config import Configurator
     config = Configurator(settings=settings)
+    config.include('pyramid_tm')
+    config.include('siyavula.models')
 
     setup_routes(config)
 
@@ -49,6 +50,8 @@ def setup_routes(config):
 
 
 def setup_database(settings):
+    # Don't know if this is necessary. When app is running stably on Northern Academy, see if
+    # deleting this stops it from working.
     from sqlalchemy import engine_from_config
     from syncserver.models import DBSession, Base
 
@@ -59,10 +62,8 @@ def setup_database(settings):
 
 def setup_logging():
     """
-    Attach the request-id aware filter to the first handler
-    in the chain. This isn't ideal, but the logging config
-    doesn't give us an easy way to attach filters to via a config
-    file.
+    Attach the request-id aware filter to the first handler in the chain. This isn't ideal, but the
+    logging config doesn't give us an easy way to attach filters to via a config file.
     """
     handler = logging.getLogger().handlers[0]
 
@@ -79,8 +80,7 @@ def setup_logging():
 
 
 def setup_newrelic(settings):
-    """ If +env+ is not None, setup newrelic and tell
-    it to use that environment config. """
+    """ If +env+ is not None, setup newrelic and tell it to use that environment config. """
     env = settings.get('newrelic.environment')
     ini_file = settings.get('newrelic.ini')
     if env and ini_file:

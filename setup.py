@@ -6,8 +6,8 @@ here = os.path.abspath(os.path.dirname(__file__))
 README = open(os.path.join(here, 'README.rst')).read()
 
 requires = [
-    'pyramid == 1.4',
-    'python-dateutil == 2.1',
+    'pyramid',
+    'python-dateutil',
     'SQLAlchemy',
     'transaction',
     'pyramid_tm',
@@ -19,19 +19,17 @@ requires = [
     'gunicorn',
     'nose',
     'webtest',
-    'requests',
-    ]
+    'requests']
 
 setup(name='syncserver',
       version='1.3',
       description='Synchronisation service for the network of Monassis instances',
       long_description=README,
       classifiers=[
-        "Programming Language :: Python",
-        "Framework :: Pyramid",
-        "Topic :: Internet :: WWW/HTTP",
-        "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
-        ],
+          "Programming Language :: Python",
+          "Framework :: Pyramid",
+          "Topic :: Internet :: WWW/HTTP",
+          "Topic :: Internet :: WWW/HTTP :: WSGI :: Application"],
       author='Carl Scheffler',
       author_email='carl@siyavula.com',
       url='',
@@ -46,5 +44,4 @@ setup(name='syncserver',
       main = syncserver:main
       [console_scripts]
       initialize_db = syncserver.scripts.initializedb:main
-      """,
-      )
+      """)
