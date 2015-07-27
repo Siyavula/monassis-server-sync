@@ -147,5 +147,9 @@ Linking the running app to a config file
 ========================================
 The file that stores the actual syncing information is in the config folder. It has [sync:main] and
 a whole bunch of [section:] tags that will be used by the code to know what tables and fields to use
-when syncing data. This file is coupled to the running app ini file by virtue of the upstart config
-in init-scripts where the INIFILE setting points to the config file to use.
+when syncing data.
+
+The syncing is done by running this application as a server (using one of the ini files in the root
+folder) and then by running a python file (client/client.py) to perform the actual synchronisation.
+
+That python file will take the ini file from the config folder as one of it's arguments.

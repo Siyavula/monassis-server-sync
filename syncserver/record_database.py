@@ -8,12 +8,15 @@ from hashlib import md5
 from sqlalchemy import and_
 from sqlalchemy.sql import text
 from uuid import UUID
+import monassis.database as dbmodel
+from syncserver.db import tables
 
 from syncserver.errors import VolatileConflict
+from siyavula.models.db import EmasBase, MonassisBase
 
 
 '''
-Required generic structs:
+generic structs:
   config
 
 Required json-ready structs:
@@ -148,21 +151,9 @@ Required methods:
    < record_id: user-defined-record-id
 '''
 
-DATABASE_REGISTRY = {
-    'monassisdb': {
-        'module': 'monassis.database',
-        'version': 'DB_VERSION',
-        'database': 'db',
-        'tables': 'tables',
-        'hash_table': 'record_hashes',
-    },
-    'testdb': {
-        'module': 'syncserver.tests.dbmodel',
-        'version': 'DB_VERSION',
-        'database': 'db',
-        'tables': 'tables',
-        'hash_table': 'record_hashes',
-    },
+DATABASES = {
+    'emasdb': EmasBase.metadata.bind,
+    'monassisdb': MonassisBase.metadata.bind,
 }
 
 
@@ -184,7 +175,7 @@ def _eval_python_command(name, command, config):
             break
         stop = command.find('`', start + 1)
         if stop == -1:
-            raise ValueError("Unclosed back tick found in command %s" % repr(command))
+            raise ValueError("Unclosed back tick found in command {}".format(command))
         sql = command[start + 1:stop]
         sql_results.append(_eval_sql_command(name, sql, local_variables, config))
         command = command[:start] + '__sql_results[%i]' % (
@@ -195,10 +186,10 @@ def _eval_python_command(name, command, config):
 def _eval_sql_command(variable_name, sql, local_variables, config):
     sql = sql.strip()
     if sql[0] != '{':
-        raise ValueError("No database specified for SQL command %s" % repr(sql))
+        raise ValueError("No database specified for SQL command {}".format(sql))
     stop = sql.find('}')
     if stop == -1:
-        raise ValueError("Unclosed brace in SQL command %s" % repr(sql))
+        raise ValueError("Unclosed brace in SQL command {}".format(sql))
     database = sql[1:stop]
     sql = sql[stop + 1:]
     if '.' in database:
@@ -210,8 +201,7 @@ def _eval_sql_command(variable_name, sql, local_variables, config):
             return []
         else:
             config['_' + role + '_vars'].append(variable_name)
-    exec "import " + DATABASE_REGISTRY[database]['module'] + " as dbmodel"
-    database = eval("dbmodel." + DATABASE_REGISTRY[database]['database'])
+    database = dbmodel.db
     connection = database.connect()
     result = connection.execute(text(sql), local_variables)
     return result
@@ -243,19 +233,11 @@ def load_config_from_file(config_path, role, run_setup=False, sync_time=None, cl
     # Load database objects and embed in config object
     for section_name in config['sync:main']['sections']:
         section = config['section:' + section_name]
-        database_config = DATABASE_REGISTRY[section['database']]
-        exec "import %s as dbmodel" % database_config['module']
-        version = eval('dbmodel.' + database_config['version'])
-        if version != config['database:' + section['database']]['version']:
-            raise ValueError("Database version number mismatch (db: %s, config: %s)." % (
-                version, config['database:' + section['database']]['version']))
-        section['_version'] = version
-        database = eval('dbmodel.' + database_config['database'])
-        section['_database'] = database
-        table = eval('dbmodel.' + database_config['tables'])[section['table']]
+        table = tables[section['table']]
+
+        section['_database'] = DATABASES[section['database']]
         section['_table'] = table
-        section['_hash_table'] = eval('dbmodel.' + database_config['tables'])[
-            database_config['hash_table']]
+        section['_hash_table'] = tables['record_hashes']
         if ',' in section['id_column']:
             id_column_names = section['id_column'].split(',')
         else:
@@ -634,8 +616,8 @@ def insert_record(config, section_name, record_id, record_data, volatile_hash=No
             if _compute_hash(config, section_name, record_id) != volatile_hash:
                 raise VolatileConflict(
                     "Tried to insert record, but found another, different record already there "
-                    "(section_name=%s, record_id=%s, record_data=%s)" % (
-                        repr(section_name), repr(record_id), repr(record_data)))
+                    "(section_name={}, record_id={}, record_data={})".format(
+                        section_name, record_id, record_data))
 
 
 def update_record(config, section_name, record_id, record_data, volatile_hashes=None):
@@ -761,8 +743,8 @@ def insert_hash(config, section_name, record_id, record_hash):
     '''
     section = config['section:' + section_name]
     packed_record_id = _pack_record_id_values(record_id)
-    if record_hash is None:
-        record_hash = _pack_record_hash_values_sql(record_data)
+    # if record_hash is None:
+    #     record_hash = _pack_record_hash_values_sql(record_data)
     section['_hash_table']\
         .insert()\
         .values(
@@ -780,8 +762,8 @@ def update_hash(config, section_name, record_id, record_hash):
     section = config['section:' + section_name]
     hash_table = section['_hash_table']
     packed_record_id_values = _pack_record_id_values(record_id)
-    if record_hash is None:
-        record_hash = _pack_record_hash_values_sql(record_data)
+    # if record_hash is None:
+    #     record_hash = _pack_record_hash_values_sql(record_data)
     rows = hash_table.update()\
         .where(
             (hash_table.c.sync_name == config['sync:main']['name']) &

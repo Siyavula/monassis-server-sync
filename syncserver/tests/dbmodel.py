@@ -64,15 +64,16 @@ def load_from_uri(uri):
     load_db()
 
 
-# Determine which database to use from configuration file
-parser = ConfigParser.SafeConfigParser()
-parser.read('database.cfg')
-db = None
-metadata = None
-tables = None
-try:
-    dbUri = parser.get('databases', 'nosetests')
-except ConfigParser.Error:
-    pass
-else:
-    load_from_uri(dbUri)
+def setup():
+    # Determine which database to use from configuration file
+    parser = ConfigParser.SafeConfigParser()
+    parser.read('database.cfg')
+    db = None
+    metadata = None
+    tables = None
+    try:
+        dbUri = parser.get('databases', 'nosetests')
+    except ConfigParser.Error:
+        pass
+    else:
+        load_from_uri(dbUri)
