@@ -12,7 +12,6 @@ import monassis.database as dbmodel
 from syncserver.db import tables
 
 from syncserver.errors import VolatileConflict
-from siyavula.models.db import EmasBase, MonassisBase
 
 
 '''
@@ -152,8 +151,8 @@ Required methods:
 '''
 
 DATABASES = {
-    'emasdb': EmasBase.metadata.bind,
-    'monassisdb': MonassisBase.metadata.bind,
+    'emasdb': None,
+    'monassisdb': None,
 }
 
 
@@ -192,18 +191,18 @@ def _eval_sql_command(variable_name, sql, local_variables, config):
         raise ValueError("Unclosed brace in SQL command {}".format(sql))
 
     database_name = sql[1:stop]
-    database = DATABASES[database_name]
     sql = sql[stop + 1:]
     if '.' in database_name:
         # client-only or server-only
-        role, database = database.split('.')
+        role, database_name = database_name.split('.')
         if role not in ['client', 'server']:
             raise ValueError("Unknown role {}".format(role))
         if role != config['sync:main']['role']:
             return []
         else:
             config['_{}_vars'.format(role)].append(variable_name)
-    database = dbmodel.db
+
+    database = DATABASES[database_name]
     connection = database.connect()
     result = connection.execute(text(sql), local_variables)
     return result
@@ -214,6 +213,14 @@ def load_config_from_file(config_path, role, run_setup=False, sync_time=None, cl
     '''
     role: 'client' or 'server'
     '''
+    # Update DATABASES here rather than at the top of this file since the imports seem not to
+    # function when the script (client.py) first loads but only later.
+    from siyavula.models.db import EmasBase, MonassisBase
+
+    DATABASES.update({
+        'emasdb': EmasBase.metadata.bind,
+        'monassisdb': MonassisBase.metadata.bind})
+
     # Load config from file
     config_parser = ConfigParser.SafeConfigParser()
     config_parser.read(config_path)
