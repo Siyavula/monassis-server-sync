@@ -244,11 +244,12 @@ def load_config_from_file(config_path, role, run_setup=False, sync_time=None, cl
             id_column_names = section['id_column'].split(',')
         else:
             id_column_names = [section['id_column']]
-        section['_id_columns'] = [table.c[column_name.strip()] for column_name in id_column_names]
+        section['_id_columns'] = [
+            getattr(table, column_name.strip()) for column_name in id_column_names]
         section['_text_id_columns'] = [sqlalchemy.sql.cast(
-            table.c[column_name.strip()],
+            getattr(table, column_name.strip()),
             sqlalchemy.Text()).label(column_name.strip()) for column_name in id_column_names]
-        hash_columns = [table.c[column_name] for column_name in section['hash_columns']]
+        hash_columns = [getattr(table, column_name) for column_name in section['hash_columns']]
         section['_hash_columns'] = hash_columns
 
     # Adjust for role

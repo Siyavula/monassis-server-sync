@@ -13,10 +13,10 @@ def setup_database():
     parser = ConfigParser.SafeConfigParser()
     parser.read('database.cfg')
 
-    monassis_db = parser.get('databases', 'monassis')
+    monassis_db = parser.get('databases', 'monassisdb')
     monassis_engine = create_engine(monassis_db)
 
-    emas_db = parser.get('databases', 'emas')
+    emas_db = parser.get('databases', 'emasdb')
     emas_engine = create_engine(emas_db)
 
     configure_databases(emas_engine, monassis_engine)
