@@ -1,7 +1,29 @@
+import ConfigParser
+import sys
+
+from sqlalchemy.engine import create_engine
+
+from syncserver.client import SyncClient, ConnectionError, HashError
+from syncserver import utils
+
+from siyavula.models import configure_databases
+
+
+def setup_database():
+    parser = ConfigParser.SafeConfigParser()
+    parser.read('database.cfg')
+
+    monassis_db = parser.get('databases', 'monassis')
+    monassis_engine = create_engine(monassis_db)
+
+    emas_db = parser.get('databases', 'emas')
+    emas_engine = create_engine(emas_db)
+
+    configure_databases(emas_engine, monassis_engine)
+
+
 if __name__ == '__main__':
-    import sys
-    from syncserver.client import SyncClient, ConnectionError, HashError
-    from syncserver import utils
+    setup_database()
 
     # Load config
     config_path = sys.argv[1]

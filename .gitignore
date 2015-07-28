@@ -4,15 +4,21 @@ env
 *.egg-info
 *.sqlite
 database.cfg
-log
-pyramid.log
 .sync_transactions
 
 client/state.pickle
-client/*.err
-client/*.out
-server/test_server.log
-server/pyramid.log
 server/pyramid.pid
 
 venv/
+
+# Convenience shortcuts
+restart.sh
+
+# Logging
+log
+pyramid.log
+init-scripts/monassis-sync-server.log
+server/test_server.log
+server/pyramid.log
+client/*.err
+client/*.out

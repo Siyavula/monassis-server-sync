@@ -190,17 +190,19 @@ def _eval_sql_command(variable_name, sql, local_variables, config):
     stop = sql.find('}')
     if stop == -1:
         raise ValueError("Unclosed brace in SQL command {}".format(sql))
-    database = sql[1:stop]
+
+    database_name = sql[1:stop]
+    database = DATABASES[database_name]
     sql = sql[stop + 1:]
-    if '.' in database:
+    if '.' in database_name:
         # client-only or server-only
         role, database = database.split('.')
         if role not in ['client', 'server']:
-            raise ValueError("Unknown role %s" % repr(role))
+            raise ValueError("Unknown role {}".format(role))
         if role != config['sync:main']['role']:
             return []
         else:
-            config['_' + role + '_vars'].append(variable_name)
+            config['_{}_vars'.format(role)].append(variable_name)
     database = dbmodel.db
     connection = database.connect()
     result = connection.execute(text(sql), local_variables)
@@ -267,8 +269,8 @@ def load_config_from_file(config_path, role, run_setup=False, sync_time=None, cl
             if config_vars[i] is None:
                 config_vars[i] = {}
             else:
-                config_vars[i] = dict([(k, _json_to_struct(v)) for k, v
-                                       in config_vars[i].iteritems()])
+                config_vars[i] = dict([
+                    (k, _json_to_struct(v)) for k, v in config_vars[i].iteritems()])
         client_vars, server_vars = config_vars
         commands = config.get('sync:setup')
         config['_setup'] = _setup_local_variables(config)
