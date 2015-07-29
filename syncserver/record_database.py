@@ -459,11 +459,13 @@ def get_hash_actions(config, sections=None):
             [hash_table.record_id, hash_table.record_hash],
             (hash_table.sync_name == sync_name) & (
                 hash_table.section_name == section_name)).alias('h')
-        full_where_clause = (select_hash.record_id is None)
+
+        full_where_clause = (select_hash.columns.record_id is None)
         if where_clause is not None:
             full_where_clause = full_where_clause & where_clause
         select = sqlalchemy.sql.select(id_columns + [record_hash], full_where_clause).select_from(
-            record_table.join(select_hash, select_hash.record_id == record_id, isouter=True))
+            record_table.join(
+                select_hash, select_hash.columns.record_id == record_id, isouter=True))
         result = database.execute(select)
         hash_actions[section_name] += [
             (tuple(row)[:-1], ('insert', tuple(row)[-1])) for row in result]
@@ -486,11 +488,11 @@ def get_hash_actions(config, sections=None):
         #     AND record_hashes.section_name = 'section_name';
         if where_clause is not None:
             select_records = sqlalchemy.sql.select(id_columns, where_clause).alias('r')
-            select_record_id = _pack_record_id_columns(select_records.c)
+            select_record_id = _pack_record_id_columns(select_records.columns)
             select = sqlalchemy.sql.select(
                 [hash_table.record_id, hash_table.record_hash],
                 and_(
-                    tuple(select_records.c)[0] is None,
+                    tuple(select_records.columns)[0] is None,
                     hash_table.sync_name == sync_name,
                     hash_table.section_name == section_name)).select_from(hash_table.join(
                         select_records, hash_table.record_id == select_record_id, isouter=True))
