@@ -435,7 +435,7 @@ def get_hash_actions(config, sections=None):
         record_hash = _pack_record_hash_columns(data_columns)
         where_clause = section.get('where')
         if where_clause is not None:
-            query_variables = dict(record_table.c)
+            query_variables = dict(record_table.__table__.columns)
             query_variables['__setup'] = local_variables
             offset = 0
             for match in re.finditer(r':[a-zA-Z_][a-zA-Z0-9_]*', where_clause):
@@ -443,6 +443,7 @@ def get_hash_actions(config, sections=None):
                 where_clause = where_clause[:offset + start] + "__setup['" + where_clause[
                     offset + start + 1:offset + stop] + "']" + where_clause[offset + stop:]
                 offset += 10  # len("__setup['']") - len(":")
+
             where_clause = eval(where_clause, query_variables, query_variables)
 
         # [(record_id, ('insert', new_hash) or ('update', old_hash, new_hash)
@@ -462,9 +463,10 @@ def get_hash_actions(config, sections=None):
 
         full_where_clause = (select_hash.columns.record_id is None)
         if where_clause is not None:
-            full_where_clause = full_where_clause & where_clause
+            full_where_clause = where_clause.__and__(full_where_clause)
+
         select = sqlalchemy.sql.select(id_columns + [record_hash], full_where_clause).select_from(
-            record_table.join(
+            record_table.__table__.join(
                 select_hash, select_hash.columns.record_id == record_id, isouter=True))
         result = database.execute(select)
         hash_actions[section_name] += [
@@ -494,7 +496,7 @@ def get_hash_actions(config, sections=None):
                 and_(
                     tuple(select_records.columns)[0] is None,
                     hash_table.sync_name == sync_name,
-                    hash_table.section_name == section_name)).select_from(hash_table.join(
+                    hash_table.section_name == section_name)).select_from(hash_table.__table__.join(
                         select_records, hash_table.record_id == select_record_id, isouter=True))
         else:
             select = sqlalchemy.sql.select(
@@ -502,7 +504,7 @@ def get_hash_actions(config, sections=None):
                 and_(
                     id_columns[0] is None,
                     hash_table.sync_name == sync_name,
-                    hash_table.section_name == section_name)).select_from(hash_table.join(
+                    hash_table.section_name == section_name)).select_from(hash_table.__table__.join(
                         record_table, hash_table.record_id == record_id, isouter=True))
         result = database.execute(select)
         hash_actions[section_name] += [
