@@ -1,4 +1,6 @@
-import os, sys
+import os
+import sys
+
 test_name = sys.argv[1]
 try:
     with open(os.path.join(test_name, '1_create_server_database.py'), 'rt') as fp:

@@ -1,4 +1,5 @@
-import os, sys
+import os
+import sys
 import ConfigParser
 from syncserver.tests import dbmodel
 
@@ -35,13 +36,17 @@ for role in ['client', 'server']:
                 e = expected_records[len(actual_records)]
                 a = None
 
-        assert expected_records == actual_records, '%s: expected = %s, actual = %s'%(role, repr(e), repr(a))
+        assert expected_records == actual_records, \
+            '{}: expected = {}, actual = {}'.format(role, e, a)
 
-    # {'sync_name': '__test__', 'section_name': 'records', 'record_id': '1,', 'record_hash': 'a3b48eba3d1b7a709f6d47a9de10c523'},
+    # {'sync_name': '__test__', 'section_name': 'records', 'record_id': '1,',
+    #     'record_hash': 'a3b48eba3d1b7a709f6d47a9de10c523'},
     expected_record_hashes = [tuple(row.items()) for row in data.get('record_hashes', [])]
     expected_record_hashes.sort()
 
-    select = dbmodel.sqlalchemy.sql.select([dbmodel.tables['record_hashes'].c[column] for column in ['sync_name', 'section_name', 'record_id', 'record_hash']])
+    select = dbmodel.sqlalchemy.sql.select([
+        dbmodel.tables['record_hashes'].c[column] for column
+        in ['sync_name', 'section_name', 'record_id', 'record_hash']])
     actual_record_hashes = [tuple(dict(row).items()) for row in dbmodel.db.execute(select)]
     actual_record_hashes.sort()
 
@@ -59,4 +64,5 @@ for role in ['client', 'server']:
                 e = expected_record_hashes[len(actual_record_hashes)]
                 a = None
 
-        assert expected_record_hashes == actual_record_hashes, '%s: expected = %s, actual = %s'%(role, repr(e), repr(a))
+        assert expected_record_hashes == actual_record_hashes, \
+            '{}: expected = {}, actual = {}'.format(role, e, a)
