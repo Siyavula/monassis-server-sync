@@ -399,11 +399,12 @@ def get_hash_hash(config):
         section = config['section:' + section_name]
         database = section['_database']
         hash_table = section['_hash_table']
-        select = sqlalchemy.sql.select(
-            [hash_table.c.record_id, hash_table.c.record_hash],
-            (hash_table.c.sync_name == sync_name) & (
-                hash_table.c.section_name == section_name)).order_by(hash_table.c.record_id.asc())
-        result = database.execute(select)
+        sql = sqlalchemy.sql.select(
+            [hash_table.record_id, hash_table.record_hash],
+            (hash_table.sync_name == sync_name) & (
+                hash_table.section_name == section_name)).order_by(hash_table.record_id.asc())
+
+        result = database.execute(sql)
         for row in result:
             hash_hash.update(row['record_id'])
             hash_hash.update(row['record_hash'])
@@ -455,14 +456,14 @@ def get_hash_actions(config, sections=None):
         #           ON (CONCAT(records.ids::TEXT) = h.record_id)
         # WHERE h.record_id IS NULL AND where_clause;
         select_hash = sqlalchemy.sql.select(
-            [hash_table.c.record_id, hash_table.c.record_hash],
-            (hash_table.c.sync_name == sync_name) & (
-                hash_table.c.section_name == section_name)).alias('h')
-        full_where_clause = (select_hash.c.record_id is None)
+            [hash_table.record_id, hash_table.record_hash],
+            (hash_table.sync_name == sync_name) & (
+                hash_table.section_name == section_name)).alias('h')
+        full_where_clause = (select_hash.record_id is None)
         if where_clause is not None:
             full_where_clause = full_where_clause & where_clause
         select = sqlalchemy.sql.select(id_columns + [record_hash], full_where_clause).select_from(
-            record_table.join(select_hash, select_hash.c.record_id == record_id, isouter=True))
+            record_table.join(select_hash, select_hash.record_id == record_id, isouter=True))
         result = database.execute(select)
         hash_actions[section_name] += [
             (tuple(row)[:-1], ('insert', tuple(row)[-1])) for row in result]
@@ -487,20 +488,20 @@ def get_hash_actions(config, sections=None):
             select_records = sqlalchemy.sql.select(id_columns, where_clause).alias('r')
             select_record_id = _pack_record_id_columns(select_records.c)
             select = sqlalchemy.sql.select(
-                [hash_table.c.record_id, hash_table.c.record_hash],
+                [hash_table.record_id, hash_table.record_hash],
                 and_(
                     tuple(select_records.c)[0] is None,
-                    hash_table.c.sync_name == sync_name,
-                    hash_table.c.section_name == section_name)).select_from(hash_table.join(
-                        select_records, hash_table.c.record_id == select_record_id, isouter=True))
+                    hash_table.sync_name == sync_name,
+                    hash_table.section_name == section_name)).select_from(hash_table.join(
+                        select_records, hash_table.record_id == select_record_id, isouter=True))
         else:
             select = sqlalchemy.sql.select(
-                [hash_table.c.record_id, hash_table.c.record_hash],
+                [hash_table.record_id, hash_table.record_hash],
                 and_(
                     id_columns[0] is None,
-                    hash_table.c.sync_name == sync_name,
-                    hash_table.c.section_name == section_name)).select_from(hash_table.join(
-                        record_table, hash_table.c.record_id == record_id, isouter=True))
+                    hash_table.sync_name == sync_name,
+                    hash_table.section_name == section_name)).select_from(hash_table.join(
+                        record_table, hash_table.record_id == record_id, isouter=True))
         result = database.execute(select)
         hash_actions[section_name] += [
             (_unpack_record_id_values(row[0]), ('delete', row[1])) for row in result]
@@ -513,13 +514,13 @@ def get_hash_actions(config, sections=None):
         #     AND record_hashes.section_name = 'section_name'
         #     AND CONCAT(records.ids::TEXT) = record_hashes.record_id
         #     AND MD5(records.data) != record_hashes.record_hash AND where_clause;
-        full_where_clause = (hash_table.c.sync_name == sync_name) & (
-            hash_table.c.section_name == section_name) & (hash_table.c.record_id == record_id) & (
-                hash_table.c.record_hash != record_hash)
+        full_where_clause = (hash_table.sync_name == sync_name) & (
+            hash_table.section_name == section_name) & (hash_table.record_id == record_id) & (
+                hash_table.record_hash != record_hash)
         if where_clause is not None:
             full_where_clause = full_where_clause & where_clause
         select = sqlalchemy.sql.select(
-            id_columns + [hash_table.c.record_hash, record_hash], full_where_clause)
+            id_columns + [hash_table.record_hash, record_hash], full_where_clause)
         result = database.execute(select)
         hash_actions[section_name] += [
             (tuple(row)[:-2], ('update',) + tuple(row)[-2:]) for row in result]
@@ -733,10 +734,10 @@ def get_hash(config, section_name, record_id):
     hash_table = section['_hash_table']
     packed_record_id_values = _pack_record_id_values(record_id)
     select = sqlalchemy.sql.select(
-        [hash_table.c.record_hash],
-        (hash_table.c.sync_name == config['sync:main']['name']) & (
-            hash_table.c.section_name == section_name) & (
-                hash_table.c.record_id == packed_record_id_values))
+        [hash_table.record_hash],
+        (hash_table.sync_name == config['sync:main']['name']) & (
+            hash_table.section_name == section_name) & (
+                hash_table.record_id == packed_record_id_values))
     result = section['_database'].execute(select)
     row = result.fetchone()
     result.close()
@@ -775,9 +776,9 @@ def update_hash(config, section_name, record_id, record_hash):
     #     record_hash = _pack_record_hash_values_sql(record_data)
     rows = hash_table.update()\
         .where(
-            (hash_table.c.sync_name == config['sync:main']['name']) &
-            (hash_table.c.section_name == section_name) &
-            (hash_table.c.record_id == packed_record_id_values))\
+            (hash_table.sync_name == config['sync:main']['name']) &
+            (hash_table.section_name == section_name) &
+            (hash_table.record_id == packed_record_id_values))\
         .values(record_hash=record_hash)\
         .execute()\
         .rowcount
@@ -802,9 +803,9 @@ def delete_hash(config, section_name, record_id):
     packed_record_id_values = _pack_record_id_values(record_id)
     affected_rows = hash_table.delete()\
         .where(
-            (hash_table.c.sync_name == config['sync:main']['name']) &
-            (hash_table.c.section_name == section_name) &
-            (hash_table.c.record_id == packed_record_id_values))\
+            (hash_table.sync_name == config['sync:main']['name']) &
+            (hash_table.section_name == section_name) &
+            (hash_table.record_id == packed_record_id_values))\
         .execute()\
         .rowcount
     return affected_rows
