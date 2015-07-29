@@ -8,7 +8,6 @@ from hashlib import md5
 from sqlalchemy import and_
 from sqlalchemy.sql import text
 from uuid import UUID
-import monassis.database as dbmodel
 from syncserver.db import tables
 
 from syncserver.errors import VolatileConflict
