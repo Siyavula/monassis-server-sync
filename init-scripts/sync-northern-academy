@@ -14,9 +14,9 @@
 SRVUSER="syncserver"
 HOME="/home/syncserver/monassis-server-sync"
 PSERVE="venv/bin/pserve"
-INIFILE="northern-academy-1.ini"
-LOGFILE="init-scripts/monassis-sync-server.log"
-PIDFILE="init-scripts/monassis-sync-server.pid"
+INIFILE="northern-academy.ini"
+LOGFILE="log/monassis-sync-server.log"
+PIDFILE="log/monassis-sync-server.pid"
 
 . /lib/lsb/init-functions
 
