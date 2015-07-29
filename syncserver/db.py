@@ -7,7 +7,7 @@ tables = {}
 for class_object in [
         Activity, Book, Cache, Chapter, Class, Concept, ConceptDependency, ConceptGroupHierarchy,
         Curriculum, Message, MessageType, Meta, NewSection, NewSectionConcept, NewSectionHierarchy,
-        Project, RecordHash, School, Section, Session, ShortCode, Task, Template, TemplateSection,
-        TemplateNewSection, TemplateResponse, UserSchool, UserClass, Voucher,
+        Project, Record, RecordHash, School, Section, Session, ShortCode, Task, Template,
+        TemplateSection, TemplateNewSection, TemplateResponse, UserSchool, UserClass, Voucher,
         User, UserIdentifier, UserProfileGeneral, UserProfile, MemberService, OTP]:
     tables[class_object.__tablename__] = class_object

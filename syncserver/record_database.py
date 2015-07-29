@@ -618,7 +618,7 @@ def insert_record(config, section_name, record_id, record_data, volatile_hash=No
 
     # Try to insert record
     try:
-        record_table.insert().values(**record_values).execute()
+        record_table.__table__.insert().values(**record_values).execute()
     except sqlalchemy.exc.IntegrityError, error:
         if ('duplicate key' not in error.message) or (volatile_hash is None):
             # Treat as potentially volatile record only on duplicate key error
@@ -655,7 +655,7 @@ def update_record(config, section_name, record_id, record_data, volatile_hashes=
             _pack_record_hash_columns(data_columns) == volatile_hashes[0])
 
     # Try to update record
-    affected_row_count = record_table.update().where(where_clause).values(
+    affected_row_count = record_table.__table__.update().where(where_clause).values(
         **record_values).execute().rowcount
     if (affected_row_count == 0) and (volatile_hashes is not None):
         # Raise volatile exception if the database changed to
@@ -696,7 +696,7 @@ def delete_record(config, section_name, record_id, volatile_hash=None):
             _pack_record_hash_columns(section['_hash_columns']) == volatile_hash)
 
     # Try to delete record
-    affected_row_count = record_table.delete().where(where_clause).execute().rowcount
+    affected_row_count = record_table.__table__.delete().where(where_clause).execute().rowcount
     if (affected_row_count == 0) and (volatile_hash is not None):
         # Raise volatile exception if the database changed to
         # something we're not expecting

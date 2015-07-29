@@ -4,10 +4,16 @@ machine:
 database:
   override:
     - cp database.cfg.example database.cfg
-    - createdb test_sync_client
+
+    - createdb -U ubuntu test_sync_client
+    - createdb -U ubuntu test_sync_server
+    - createdb -U ubuntu emas-testing
+    - createdb -U ubuntu monassis-testing
+
     - psql -U ubuntu test_sync_client < ./scripts/circle/test_sync_client.sql
-    - createdb test_sync_server
     - psql -U ubuntu test_sync_server < ./scripts/circle/test_sync_server.sql
+    - psql -U ubuntu emas-testing < ./scripts/circle/emas.sql
+    - psql -U ubuntu monassis-testing < ./scripts/circle/monassis.sql
 test:
     override:
         - nosetests
